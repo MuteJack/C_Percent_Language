@@ -1,0 +1,93 @@
+// C% Hello World Example
+// This demonstrates the basic features of the C% language
+
+// Variable declarations
+int x = 10;
+float pi = 3.14159;
+string name = "World";
+bool isAwesome = true;
+
+// Print statements
+print("Hello, " + name + "!");
+print("x =", x);
+print("pi =", pi);
+print("isAwesome =", isAwesome);
+
+// Arithmetic
+int a = 15;
+int b = 4;
+print("\n--- Arithmetic ---");
+print(a, "+", b, "=", a + b);
+print(a, "-", b, "=", a - b);
+print(a, "*", b, "=", a * b);
+print(a, "/", b, "=", a / b);
+print(a, "%", b, "=", a % b);
+
+// If-else
+print("\n--- Conditionals ---");
+if (x > 5) {
+    print("x is greater than 5");
+} else {
+    print("x is 5 or less");
+}
+
+// While loop
+print("\n--- While Loop ---");
+int count = 0;
+while (count < 5) {
+    print("count =", count);
+    count++;
+}
+
+// For loop
+print("\n--- For Loop ---");
+for (int i = 0; i < 5; i++) {
+    print("i =", i);
+}
+
+// Functions
+int factorial(int n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+print("\n--- Functions ---");
+print("factorial(5) =", factorial(5));
+print("factorial(10) =", factorial(10));
+
+// Fibonacci
+int fibonacci(int n) {
+    if (n <= 0) { return 0; }
+    if (n == 1) { return 1; }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+print("\n--- Fibonacci ---");
+for (int i = 0; i < 10; i++) {
+    print("fib(" + string(i) + ") =", fibonacci(i));
+}
+
+// FizzBuzz
+print("\n--- FizzBuzz ---");
+for (int i = 1; i <= 20; i++) {
+    if (i % 15 == 0) {
+        print("FizzBuzz");
+    } else if (i % 3 == 0) {
+        print("Fizz");
+    } else if (i % 5 == 0) {
+        print("Buzz");
+    } else {
+        print(i);
+    }
+}
+
+// Nested functions and string operations
+string greet(string who) {
+    return "Hello, " + who + "! Welcome to C%.";
+}
+
+print("\n--- String Functions ---");
+print(greet("Developer"));
+print("Length of name:", len(name));

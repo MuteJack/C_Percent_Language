@@ -1,0 +1,27 @@
+// === C% If/Else ===
+
+int x = 42;
+
+// Basic if
+if (x > 0) {
+    println("positive");
+}
+
+// If-else
+if (x % 2 == 0) {
+    println("even");
+} else {
+    println("odd");
+}
+
+// If-else if-else
+int score = 85;
+if (score >= 90) {
+    println("A");
+} else if (score >= 80) {
+    println("B");
+} else if (score >= 70) {
+    println("C");
+} else {
+    println("F");
+}

@@ -1,0 +1,36 @@
+// === C% Array (fixed-size) ===
+
+// Declaration with initializer
+int arr[] = [1, 2, 3, 4, 5];
+println(arr);
+println("len:", len(arr));
+
+// Declaration with size
+int zeros[5];
+println(zeros);
+
+// Declaration with size + partial init (padded with defaults)
+int partial[5] = [10, 20];
+println(partial);
+
+// Element access and assignment
+arr[0] = 100;
+println("arr[0] =", arr[0]);
+
+// Compound assignment
+arr[1] += 10;
+println("arr[1] += 10:", arr[1]);
+
+// Negative indexing
+println("arr[-1] =", arr[-1]);
+
+// For-each iteration
+for (int x : arr) {
+    print(x, " ");
+}
+println("");
+
+// Multi-dimensional array
+int matrix[2][3] = [[1, 2, 3], [4, 5, 6]];
+println(matrix);
+println("matrix[1][2] =", matrix[1][2]);

@@ -1,0 +1,49 @@
+// === C% Vector (dynamic array) ===
+
+// Declaration
+vector<int> v = [1, 2, 3];
+println(v);
+println("size:", v.size());
+
+// Push / Pop
+v.push(4);
+v.push(5);
+println("after push:", v);
+
+int popped = v.pop();
+println("popped:", popped);
+println("after pop:", v);
+
+// Element access and assignment
+println("v[0] =", v[0]);
+v[0] = 100;
+println("v[0] = 100:", v);
+
+// Insert / Erase
+v.insert(1, 999);
+println("insert(1, 999):", v);
+v.erase(1);
+println("erase(1):", v);
+
+// Front / Back / Empty
+println("front:", v.front());
+println("back:", v.back());
+println("empty:", v.empty());
+
+// Clear
+v.clear();
+println("after clear:", v);
+println("empty:", v.empty());
+
+// Type coercion
+vector<int> vi = [1, 2, 3];
+vi.push(4);
+println("vector<int>:", vi);
+
+vector<float> vf = [1.1, 2.2, 3.3];
+vf.push(4.4);
+println("vector<float>:", vf);
+
+vector<string> vs = ["hello", "world"];
+vs.push("!");
+println("vector<string>:", vs);

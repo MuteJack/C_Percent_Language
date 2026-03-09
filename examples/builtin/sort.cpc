@@ -1,0 +1,21 @@
+// === C% Sort ===
+
+// Sort array (ascending)
+int arr[] = [5, 3, 8, 1, 9, 2, 7];
+println("before:", arr);
+sort(arr);
+println("after sort:", arr);
+
+// Sort descending
+sort(arr, "desc");
+println("descending:", arr);
+
+// Sort float array
+float farr[] = [3.14, 1.41, 2.72, 0.58];
+sort(farr);
+println("float sorted:", farr);
+
+// Sort string array
+string names[] = ["charlie", "alice", "bob"];
+sort(names);
+println("string sorted:", names);

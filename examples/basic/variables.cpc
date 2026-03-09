@@ -1,0 +1,43 @@
+// === C% Variables ===
+
+// Integer types
+int x = 42;
+int8 small = 127;
+int16 medium = 32767;
+int32 normal = 2147483647;
+int64 big = 9223372036854775807;
+
+println("int:", x);
+println("int8:", small);
+println("int16:", medium);
+println("int32:", normal);
+println("int64:", big);
+
+// Float types
+float pi = 3.141592653589793;
+float32 f32 = 3.14;
+float64 f64 = 3.141592653589793;
+
+println("float:", pi);
+println("float32:", f32);
+println("float64:", f64);
+
+// String, char, bool
+string name = "C%";
+char ch = 'A';
+bool flag = true;
+
+println("string:", name);
+println("char:", ch);
+println("bool:", flag);
+
+// Default initialization
+int a;
+float b;
+string c;
+bool d;
+
+println("default int:", a);
+println("default float:", b);
+println("default string:", c);
+println("default bool:", d);

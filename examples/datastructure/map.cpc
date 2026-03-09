@@ -1,0 +1,16 @@
+// === C% Map (typed dict) ===
+
+// Declaration with type annotation
+map<string, int> ages = {"alice": 25, "bob": 30};
+println(ages);
+
+// Access and modify
+println("alice:", ages["alice"]);
+ages["charlie"] = 28;
+println("after add:", ages);
+
+// Built-in functions
+println("keys:", keys(ages));
+println("values:", values(ages));
+println("has alice:", has(ages, "alice"));
+println("len:", len(ages));

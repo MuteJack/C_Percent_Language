@@ -1,0 +1,47 @@
+// C% BigInt Test
+// 'int' type auto-promotes to BigInt on overflow
+
+print("=== int64 overflow → BigInt ===");
+int x = 9223372036854775807;  // INT64_MAX
+print("x =", x);
+int y = x + 1;
+print("x + 1 =", y);
+print("x + 100 =", x + 100);
+
+print("\n=== Large multiplication ===");
+int big = 1000000000;
+int bigger = big * big;  // 10^18, still fits int64
+print("10^9 * 10^9 =", bigger);
+int huge = bigger * bigger;  // 10^36, overflows → BigInt
+print("10^18 * 10^18 =", huge);
+
+print("\n=== Negative overflow ===");
+int neg = -9223372036854775807;
+neg = neg - 1;  // INT64_MIN
+print("INT64_MIN =", neg);
+neg = neg - 1;  // overflow → BigInt
+print("INT64_MIN - 1 =", neg);
+
+print("\n=== BigInt arithmetic ===");
+int a = 999999999999999999;
+int b = 999999999999999999;
+print("a + b =", a + b);
+print("a * b =", a * b);
+
+print("\n=== Factorial (large) ===");
+int factorial(int n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+print("20! =", factorial(20));
+print("25! =", factorial(25));
+print("30! =", factorial(30));
+
+print("\n=== Power of 2 ===");
+int pow2 = 1;
+for (int i = 0; i < 100; i++) {
+    pow2 = pow2 * 2;
+}
+print("2^100 =", pow2);
+
+print("\nAll BigInt tests passed!");

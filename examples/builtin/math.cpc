@@ -1,0 +1,14 @@
+// === C% Math Built-in ===
+
+// Power operator
+println("2 ** 10 =", 2 ** 10);
+println("3 ** 3 =", 3 ** 3);
+println("2 ** -1 =", 2 ** -1);
+
+// Divmod (quotient and remainder)
+println("divmod(10, 3) =", divmod(10, 3));
+println("divmod(7, 2) =", divmod(7, 2));
+println("divmod(100, 7) =", divmod(100, 7));
+
+// Divmod operator
+println("10 /% 3 =", 10 /% 3);

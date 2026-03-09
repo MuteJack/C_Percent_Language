@@ -1,0 +1,76 @@
+// C% Integer Type System Test
+// int8:  -128 ~ 127
+// int16: -32768 ~ 32767
+// int32: -2147483648 ~ 2147483647
+// int64: -9223372036854775808 ~ 9223372036854775807
+// int = int32 (alias)
+
+print("=== int8 ===");
+int8 a = 100;
+print("a =", a);
+
+int8 b = -128;
+print("b =", b);
+
+int8 c = 127;
+print("c =", c);
+
+// int8 is a NUMBER, not a char
+int8 d = 65;
+print("d =", d);        // prints 65, NOT 'A'
+print("d + 1 =", d + 1); // prints 66, numeric arithmetic
+
+print("\n=== int16 ===");
+int16 e = 30000;
+print("e =", e);
+
+int16 f = -32768;
+print("f =", f);
+
+print("\n=== int32 ===");
+int32 g = 2000000000;
+print("g =", g);
+
+// int and int32 behave the same
+int h = 2000000000;
+print("h (int) =", h);
+
+print("\n=== int64 ===");
+int64 big = 9000000000;
+print("big =", big);
+print("big * 2 =", big * 2);
+
+print("\n=== Mixed arithmetic ===");
+int8 x = 10;
+int64 y = 1000000000;
+print("x + y =", x + y);   // result is int64 range
+
+print("\n=== Increment/Decrement ===");
+int8 counter = 125;
+print("counter =", counter);
+counter++;
+print("counter++ =", counter);
+counter++;
+print("counter++ =", counter);
+
+print("\n=== For loop with int8 ===");
+for (int8 i = 0; i < 5; i++) {
+    print("i =", i);
+}
+
+print("\n=== Overflow wrap-around (like C/C++) ===");
+int8 overflow = 200;         // wraps: 200 - 256 = -56
+print("int8(200) =", overflow);
+
+int8 neg = -129;             // wraps: -129 + 256 = 127
+print("int8(-129) =", neg);
+
+int8 wrap = 127;
+wrap++;                       // wraps: 128 → -128
+print("127 + 1 =", wrap);
+
+int16 w16 = 32767;
+w16++;                        // wraps: 32768 → -32768
+print("int16(32767) + 1 =", w16);
+
+print("All tests passed!");

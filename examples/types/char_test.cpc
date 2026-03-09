@@ -1,0 +1,52 @@
+// C% Char Type Test
+
+print("=== char literal ===");
+char a = 'A';
+print("a =", a);
+
+char b = 'Z';
+print("b =", b);
+
+print("\n=== escape sequences ===");
+char newline = '\n';
+char tab = '\t';
+char backslash = '\\';
+char quote = '\'';
+
+print("newline code =", newline + 0);
+print("tab code =", tab + 0);
+print("backslash code =", backslash + 0);
+print("quote code =", quote + 0);
+
+print("\n=== char arithmetic ===");
+char c = 'A';
+print("'A' + 1 =", c + 1);
+
+char d = 'A';
+d++;
+print("'A'++ =", d);
+
+char e = 'Z';
+e--;
+print("'Z'-- =", e);
+
+print("\n=== char to int ===");
+int code = 'A' + 0;
+print("'A' as int =", code);
+
+int code2 = 'a' + 0;
+print("'a' as int =", code2);
+
+print("\n=== char comparison ===");
+char x = 'A';
+char y = 'B';
+if (x < y) {
+    print("'A' < 'B' : true");
+}
+
+print("\n=== char overflow (wrap-around) ===");
+char f = 127;
+f++;
+print("127++ =", f + 0);
+
+print("\nAll char tests passed!");

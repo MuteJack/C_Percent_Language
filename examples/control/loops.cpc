@@ -1,0 +1,50 @@
+// === C% Loops ===
+
+// while
+println("=== while ===");
+int i = 0;
+while (i < 5) {
+    print(i, " ");
+    i++;
+}
+println("");
+
+// do-while
+println("=== do-while ===");
+int j = 0;
+do {
+    print(j, " ");
+    j++;
+} while (j < 5);
+println("");
+
+// C-style for
+println("=== for ===");
+for (int k = 0; k < 5; k++) {
+    print(k, " ");
+}
+println("");
+
+// for-each
+println("=== for-each ===");
+int arr[5] = [10, 20, 30, 40, 50];
+for (int x : arr) {
+    print(x, " ");
+}
+println("");
+
+// for(n)
+println("=== for(n) ===");
+for(5) {
+    print("x");
+}
+println("");
+
+// break / continue
+println("=== break/continue ===");
+for (int n = 0; n < 10; n++) {
+    if (n % 2 == 0) continue;
+    if (n > 7) break;
+    print(n, " ");
+}
+println("");

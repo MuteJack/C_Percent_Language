@@ -1,0 +1,48 @@
+// === C% Operators ===
+
+// Arithmetic
+println("10 + 3 =", 10 + 3);
+println("10 - 3 =", 10 - 3);
+println("10 * 3 =", 10 * 3);
+println("10 / 3 =", 10 / 3);
+println("10 % 3 =", 10 % 3);
+println("2 ** 10 =", 2 ** 10);
+
+// Divmod
+println("10 /% 3 =", 10 /% 3);
+
+// Comparison
+println("5 == 5:", 5 == 5);
+println("5 != 3:", 5 != 3);
+println("5 > 3:", 5 > 3);
+println("5 < 3:", 5 < 3);
+println("5 >= 5:", 5 >= 5);
+println("5 <= 3:", 5 <= 3);
+
+// Chained comparison
+int x = 5;
+println("0 < 5 < 10:", 0 < x < 10);
+
+// Logical
+println("true && false:", true && false);
+println("true || false:", true || false);
+println("!true:", !true);
+
+// Compound assignment
+int a = 10;
+a += 5;  println("a += 5:", a);
+a -= 3;  println("a -= 3:", a);
+a *= 2;  println("a *= 2:", a);
+a /= 4;  println("a /= 4:", a);
+a %= 3;  println("a %= 3:", a);
+
+// Increment / Decrement
+int b = 0;
+b++;
+println("b++ ->", b);
+++b;
+println("++b ->", b);
+b--;
+println("b-- ->", b);
+--b;
+println("--b ->", b);

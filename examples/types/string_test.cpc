@@ -1,0 +1,28 @@
+// === C% String Types ===
+
+// Normal string with escape sequences
+string s1 = "hello\nworld";
+println(s1);
+
+string s2 = "tab\there";
+println(s2);
+
+// Raw string (no escape processing)
+string path = r"C:\Users\test\newfile.txt";
+println(path);
+
+// F-string (formatted string)
+string name = "World";
+int age = 25;
+
+println(f"Hello, {name}!");
+println(f"Age: {age}, Double: {age * 2}");
+println(f"2 + 3 = {2 + 3}");
+println(f"len = {len("hello")}");
+
+// String concatenation
+string greeting = "Hello" + " " + "C%";
+println(greeting);
+
+// String length
+println("len:", len(greeting));

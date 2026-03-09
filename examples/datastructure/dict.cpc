@@ -1,0 +1,27 @@
+// === C% Dict ===
+
+// Declaration
+dict scores = {"alice": 90, "bob": 85, "charlie": 92};
+println(scores);
+
+// Access
+println("alice:", scores["alice"]);
+
+// Assignment
+scores["dave"] = 88;
+println("after add dave:", scores);
+
+// Modify
+scores["alice"] = 95;
+println("alice updated:", scores["alice"]);
+
+// Built-in functions
+println("keys:", keys(scores));
+println("values:", values(scores));
+println("has alice:", has(scores, "alice"));
+println("has eve:", has(scores, "eve"));
+
+// Remove
+scores.remove("bob");
+println("after remove bob:", scores);
+println("len:", len(scores));
