@@ -1,0 +1,29 @@
+{
+  "name": "cpct-language",
+  "displayName": "C% Language",
+  "description": "Syntax highlighting for the C% (C Percent) programming language",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "cpct",
+        "aliases": ["C%", "C Percent", "cpct"],
+        "extensions": [".cpc"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "cpct",
+        "scopeName": "source.cpct",
+        "path": "./syntaxes/cpct.tmLanguage.json"
+      }
+    ]
+  }
+}
