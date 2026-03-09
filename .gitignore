@@ -1,0 +1,6 @@
+# Hidden Files
+/.*
+!.gitignore
+
+# Build
+/*.exe
