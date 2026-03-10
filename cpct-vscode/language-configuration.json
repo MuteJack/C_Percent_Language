@@ -1,12 +1,17 @@
 {
+  // Comment style
   "comments": {
     "lineComment": "//"
   },
+
+  // Bracket matching (highlighting, navigation)
   "brackets": [
     ["{", "}"],
     ["[", "]"],
     ["(", ")"]
   ],
+
+  // Auto-closing: inserts closing character when opening is typed
   "autoClosingPairs": [
     { "open": "{", "close": "}" },
     { "open": "[", "close": "]" },
@@ -14,6 +19,8 @@
     { "open": "\"", "close": "\"", "notIn": ["string"] },
     { "open": "'", "close": "'", "notIn": ["string", "comment"] }
   ],
+
+  // Wraps selected text when bracket/quote is typed
   "surroundingPairs": [
     { "open": "{", "close": "}" },
     { "open": "[", "close": "]" },
@@ -21,14 +28,18 @@
     { "open": "\"", "close": "\"" },
     { "open": "'", "close": "'" }
   ],
+
+  // Code folding rules
   "folding": {
     "markers": {
       "start": "^\\s*\\{",
       "end": "^\\s*\\}"
     }
   },
+
+  // Auto-indentation rules
   "indentationRules": {
-    "increaseIndentPattern": "\\{\\s*$",
-    "decreaseIndentPattern": "^\\s*\\}"
+    "increaseIndentPattern": "\\{\\s*$",   // Increase indent after {
+    "decreaseIndentPattern": "^\\s*\\}"    // Decrease indent before }
   }
 }
