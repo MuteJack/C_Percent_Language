@@ -1,15 +1,15 @@
 # C% 인터프리터 내부 구현
 
-## 런타임 값 (CmmValue)
+## 런타임 값 (CpctValue)
 
-트리워킹 인터프리터에서 모든 스칼라 변수는 `CmmValue`(`std::variant`)에 저장된다.
+트리워킹 인터프리터에서 모든 스칼라 변수는 `CpctValue`(`std::variant`)에 저장된다.
 `variant`는 가장 큰 멤버 크기로 고정되므로, `int8`이든 `int64`이든 동일한 메모리를 차지한다.
 범위 제한(wrap-around, 정밀도 절삭)은 대입/연산 시점에 소프트웨어적으로 적용된다.
 
 ```
-CmmValue = std::variant<int64_t, double, bool, std::string,
-                        std::vector<CmmValue>, BigInt, TypedArray, CmmDict>
-sizeof(CmmValue) ≈ 40~48 bytes (플랫폼/컴파일러에 따라 상이)
+CpctValue = std::variant<int64_t, double, bool, std::string,
+                        std::vector<CpctValue>, BigInt, TypedArray, CpctDict>
+sizeof(CpctValue) ≈ 40~48 bytes (플랫폼/컴파일러에 따라 상이)
 ```
 
 | 스칼라 타입 | 실제 저장 타입 | 범위 제한 방식 |
@@ -52,18 +52,18 @@ sizeof(CmmValue) ≈ 40~48 bytes (플랫폼/컴파일러에 따라 상이)
 
 ---
 
-## dict / map (CmmDict)
+## dict / map (CpctDict)
 
-dict와 map은 내부적으로 동일한 `CmmDict` 구조체를 사용하되, 인덱싱 전략이 다르다.
+dict와 map은 내부적으로 동일한 `CpctDict` 구조체를 사용하되, 인덱싱 전략이 다르다.
 
 ### 공통 구조
 
 ```
-CmmDict {
+CpctDict {
     keyType: string                  // "" (dict) 또는 "string"/"int"/... (map)
     valueType: string                // "" (dict) 또는 "int"/"float"/... (map)
-    keys: vector<CmmValue>           // 삽입 순서 유지
-    values: vector<CmmValue>         // keys와 1:1 대응
+    keys: vector<CpctValue>           // 삽입 순서 유지
+    values: vector<CpctValue>         // keys와 1:1 대응
     strIndex: unordered_map<string, size_t>   // 문자열 해시 인덱스
     intIndex: unordered_map<int64_t, size_t>  // 정수 해시 인덱스
 }
