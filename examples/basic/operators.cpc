@@ -46,3 +46,18 @@ b--;
 println("b-- ->", b);
 --b;
 println("--b ->", b);
+
+// Ternary operator
+int p = 10;
+int q = 20;
+println("max:", p > q ? p : q);
+println("min:", p < q ? p : q);
+
+// Nested ternary
+int score = 85;
+string grade = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : "F";
+println("grade:", grade);
+
+// Ternary in expression
+int result = (p > 5 ? 10 : 0) + (q > 10 ? 20 : 0);
+println("result:", result);

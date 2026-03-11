@@ -343,6 +343,9 @@ std::vector<Token> Lexer::tokenize() {
             case '.':
                 tokens.push_back(makeToken(TokenType::DOT, "."));
                 continue;
+            case '?':
+                tokens.push_back(makeToken(TokenType::QUESTION, "?"));
+                continue;
         }
 
         throw std::runtime_error(

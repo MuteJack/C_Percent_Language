@@ -27,6 +27,7 @@ enum class TokenType {
     AND, OR, NOT,
     PLUS_ASSIGN, MINUS_ASSIGN, STAR_ASSIGN, SLASH_ASSIGN, PERCENT_ASSIGN,
     INCREMENT, DECREMENT,
+    QUESTION,
 
     // Delimiters
     LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET,
@@ -160,6 +161,7 @@ inline std::string tokenTypeToString(TokenType type) {
         case TokenType::STAR_ASSIGN: return "*=";
         case TokenType::SLASH_ASSIGN: return "/=";
         case TokenType::PERCENT_ASSIGN: return "%=";
+        case TokenType::QUESTION: return "?";
         case TokenType::INCREMENT: return "++";
         case TokenType::DECREMENT: return "--";
         case TokenType::LPAREN: return "(";

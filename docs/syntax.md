@@ -103,6 +103,15 @@ a || b    // OR
 !a        // NOT
 ```
 
+## 삼항 연산자
+
+```
+int max = x > y ? x : y;
+
+// 중첩 가능 (우결합)
+string grade = score >= 90 ? "A" : score >= 80 ? "B" : "C";
+```
+
 ## 조건문
 
 ```
@@ -248,7 +257,8 @@ switch (x) {
 }
 ```
 
-- `int`, `float`, `string`, `bool` 타입 매칭 지원
+- `int`, `string`, `bool` 타입 매칭 지원
+- `float` 타입은 사용 불가 (부동소수점 정밀도 문제로 금지, C/C++과 동일)
 - `break` 없으면 다음 case로 fall-through (C/C++과 동일)
 - `default`는 어떤 case에도 매칭되지 않을 때 실행
 - 루프 안에서 `continue` 사용 시 switch를 빠져나와 다음 반복으로 진행

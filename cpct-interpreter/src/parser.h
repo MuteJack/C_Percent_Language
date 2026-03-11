@@ -52,6 +52,7 @@ private:
     // Expressions (precedence climbing)
     ExprPtr parseExpression();
     ExprPtr parseAssignment();
+    ExprPtr parseTernary();
     ExprPtr parseOr();
     ExprPtr parseAnd();
     ExprPtr parseEquality();
