@@ -102,9 +102,9 @@ struct CpctDict {
     static int64_t intHash(const CpctValue& key);           // raw int64 — for int-keyed map
 };
 
-// Runtime value type — int stored as int64_t to support int8~int64 uniformly
+// Runtime value type — signed int stored as int64_t, unsigned as uint64_t
 // BigInt for 'intbig'/'bigint' types that auto-promote on overflow
-using Value = std::variant<int64_t, double, bool, std::string, std::vector<CpctValue>, BigInt, TypedArray, CpctDict>;
+using Value = std::variant<int64_t, uint64_t, double, bool, std::string, std::vector<CpctValue>, BigInt, TypedArray, CpctDict>;
 
 struct CpctValue {
     Value data;
@@ -112,6 +112,7 @@ struct CpctValue {
     CpctValue() : data(int64_t(0)) {}
     CpctValue(int v) : data(static_cast<int64_t>(v)) {}
     CpctValue(int64_t v) : data(v) {}
+    CpctValue(uint64_t v) : data(v) {}
     CpctValue(double v) : data(v) {}
     CpctValue(bool v) : data(v) {}
     CpctValue(const std::string& v) : data(v) {}
@@ -130,8 +131,9 @@ struct CpctValue {
     }
 
     bool isInt() const { return std::holds_alternative<int64_t>(data); }
+    bool isUInt() const { return std::holds_alternative<uint64_t>(data); }
     bool isBigInt() const { return std::holds_alternative<BigInt>(data); }
-    bool isNumericInt() const { return isInt() || isBigInt(); }
+    bool isNumericInt() const { return isInt() || isUInt() || isBigInt(); }
     bool isFloat() const { return std::holds_alternative<double>(data); }
     bool isBool() const { return std::holds_alternative<bool>(data); }
     bool isString() const { return std::holds_alternative<std::string>(data); }
@@ -141,10 +143,19 @@ struct CpctValue {
     bool isDict() const { return std::holds_alternative<CpctDict>(data); }
 
     int64_t asInt() const { return std::get<int64_t>(data); }
+    uint64_t asUInt() const { return std::get<uint64_t>(data); }
     const BigInt& asBigInt() const { return std::get<BigInt>(data); }
     BigInt toBigInt() const {
         if (isInt()) return BigInt(asInt());
+        if (isUInt()) return BigInt(asUInt());
         if (isBigInt()) return asBigInt();
+        throw std::runtime_error("Not an integer value");
+    }
+    // Convert any integer type to int64_t (for cases where sign doesn't matter or value fits)
+    int64_t toInt64() const {
+        if (isInt()) return asInt();
+        if (isUInt()) return static_cast<int64_t>(asUInt());
+        if (isBigInt()) return asBigInt().toInt64();
         throw std::runtime_error("Not an integer value");
     }
     double asFloat() const { return std::get<double>(data); }
@@ -162,26 +173,55 @@ struct CpctValue {
     std::string toString() const;
 };
 
+// ============== Safe signed/unsigned comparison helpers (C++17, replaces std::cmp_*) ==============
+inline bool safeCmpLess(int64_t a, uint64_t b) {
+    return a < 0 || static_cast<uint64_t>(a) < b;
+}
+inline bool safeCmpLess(uint64_t a, int64_t b) {
+    return b >= 0 && a < static_cast<uint64_t>(b);
+}
+inline bool safeCmpLess(int64_t a, int64_t b) { return a < b; }
+inline bool safeCmpLess(uint64_t a, uint64_t b) { return a < b; }
+
+inline bool safeCmpEqual(int64_t a, uint64_t b) {
+    return a >= 0 && static_cast<uint64_t>(a) == b;
+}
+inline bool safeCmpEqual(uint64_t a, int64_t b) {
+    return b >= 0 && a == static_cast<uint64_t>(b);
+}
+inline bool safeCmpEqual(int64_t a, int64_t b) { return a == b; }
+inline bool safeCmpEqual(uint64_t a, uint64_t b) { return a == b; }
+
+inline bool safeCmpLessEqual(int64_t a, uint64_t b) {
+    return a < 0 || static_cast<uint64_t>(a) <= b;
+}
+inline bool safeCmpLessEqual(uint64_t a, int64_t b) {
+    return b >= 0 && a <= static_cast<uint64_t>(b);
+}
+inline bool safeCmpLessEqual(int64_t a, int64_t b) { return a <= b; }
+inline bool safeCmpLessEqual(uint64_t a, uint64_t b) { return a <= b; }
+
 // Integer type range information
 struct IntTypeInfo {
     int64_t minVal;
-    int64_t maxVal;
+    int64_t maxVal;      // For uint64, maxVal is INT64_MAX (actual max handled via isUint64Full)
+    bool isUint64Full;   // true only for uint64 (max exceeds int64_t range)
     const char* name;
 };
 
 inline const IntTypeInfo& getIntTypeInfo(const std::string& typeName) {
-    static const IntTypeInfo info_char   = { INT8_MIN,  INT8_MAX,  "char"   };
-    static const IntTypeInfo info_int8   = { INT8_MIN,  INT8_MAX,  "int8"   };
-    static const IntTypeInfo info_int16  = { INT16_MIN, INT16_MAX, "int16"  };
-    static const IntTypeInfo info_int32  = { INT32_MIN, INT32_MAX, "int32"  };
-    static const IntTypeInfo info_int64  = { INT64_MIN, INT64_MAX, "int64"  };
-    static const IntTypeInfo info_int    = { INT32_MIN, INT32_MAX, "int"    }; // int = int32 고정
-    static const IntTypeInfo info_intbig = { INT32_MIN, INT32_MAX, "intbig" }; // intbig = int32 범위 시작, BigInt 승격
-    static const IntTypeInfo info_uint8  = { 0, UINT8_MAX,  "uint8"  };
-    static const IntTypeInfo info_uint16 = { 0, UINT16_MAX, "uint16" };
-    static const IntTypeInfo info_uint32 = { 0, static_cast<int64_t>(UINT32_MAX), "uint32" };
-    static const IntTypeInfo info_uint64 = { 0, INT64_MAX,  "uint64" }; // uint64 max는 int64로 표현 불가, 별도 처리
-    static const IntTypeInfo info_uint   = { 0, static_cast<int64_t>(UINT32_MAX), "uint" }; // uint = uint32
+    static const IntTypeInfo info_char   = { INT8_MIN,  INT8_MAX,  false, "char"   };
+    static const IntTypeInfo info_int8   = { INT8_MIN,  INT8_MAX,  false, "int8"   };
+    static const IntTypeInfo info_int16  = { INT16_MIN, INT16_MAX, false, "int16"  };
+    static const IntTypeInfo info_int32  = { INT32_MIN, INT32_MAX, false, "int32"  };
+    static const IntTypeInfo info_int64  = { INT64_MIN, INT64_MAX, false, "int64"  };
+    static const IntTypeInfo info_int    = { INT32_MIN, INT32_MAX, false, "int"    }; // int = int32 고정
+    static const IntTypeInfo info_intbig = { INT32_MIN, INT32_MAX, false, "intbig" }; // intbig = int32 범위 시작, BigInt 승격
+    static const IntTypeInfo info_uint8  = { 0, UINT8_MAX,  false, "uint8"  };
+    static const IntTypeInfo info_uint16 = { 0, UINT16_MAX, false, "uint16" };
+    static const IntTypeInfo info_uint32 = { 0, static_cast<int64_t>(UINT32_MAX), false, "uint32" };
+    static const IntTypeInfo info_uint64 = { 0, 0, true, "uint64" }; // full uint64 range, stored as uint64_t
+    static const IntTypeInfo info_uint   = { 0, static_cast<int64_t>(UINT32_MAX), false, "uint" }; // uint = uint32
 
     if (typeName == "char")   return info_char;
     if (typeName == "int8")   return info_int8;

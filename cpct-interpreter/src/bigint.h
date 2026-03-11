@@ -15,6 +15,7 @@ public:
 
     BigInt() : negative_(false), small_(true), smallVal_(0) {}
     BigInt(int64_t val);
+    BigInt(uint64_t val);
     BigInt(const std::string& str);
 
     // Copy/move

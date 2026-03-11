@@ -604,7 +604,7 @@ ExprPtr Parser::parseExpression() {
 }
 
 ExprPtr Parser::parseAssignment() {
-    auto expr = parseOr();
+    auto expr = parseTernary();
 
     if (expr->kind == ExprKind::Identifier) {
         if (check(TokenType::ASSIGN)) {
@@ -640,6 +640,23 @@ ExprPtr Parser::parseAssignment() {
     }
 
     return expr;
+}
+
+ExprPtr Parser::parseTernary() {
+    auto cond = parseOr();
+    if (!check(TokenType::QUESTION)) return cond;
+    int line = current().line;
+    advance(); // skip '?'
+    auto trueExpr = parseTernary(); // right-associative
+    expect(TokenType::COLON, "Expected ':' in ternary expression");
+    auto falseExpr = parseTernary(); // right-associative
+    auto e = std::make_unique<Expr>();
+    e->kind = ExprKind::Ternary;
+    e->operand = std::move(cond);  // condition
+    e->left = std::move(trueExpr);
+    e->right = std::move(falseExpr);
+    e->line = line;
+    return e;
 }
 
 ExprPtr Parser::parseOr() {
@@ -824,7 +841,17 @@ ExprPtr Parser::parsePrimary() {
     // Number literals
     if (check(TokenType::INT_LIT)) {
         Token tok = advance();
-        return makeIntLiteral(std::stoll(tok.value), tok.line);
+        try {
+            return makeIntLiteral(std::stoll(tok.value), tok.line);
+        } catch (...) {
+            // Value exceeds int64_t range (e.g., large uint64 literals)
+            // Store as BigInt literal, will be coerced to uint64_t by checkIntRange
+            auto e = std::make_unique<Expr>();
+            e->kind = ExprKind::BigIntLiteral;
+            e->strVal = tok.value;
+            e->line = tok.line;
+            return e;
+        }
     }
     if (check(TokenType::FLOAT_LIT)) {
         Token tok = advance();

@@ -7,6 +7,16 @@
 
 BigInt::BigInt(int64_t val) : negative_(val < 0), small_(true), smallVal_(val) {}
 
+BigInt::BigInt(uint64_t val) : negative_(false), small_(false), smallVal_(0) {
+    if (val <= static_cast<uint64_t>(INT64_MAX)) {
+        small_ = true;
+        smallVal_ = static_cast<int64_t>(val);
+    } else {
+        // Value exceeds int64_t range — use string constructor path
+        *this = BigInt(std::to_string(val));
+    }
+}
+
 BigInt::BigInt(const std::string& str) : negative_(false), small_(false), smallVal_(0) {
     if (str.empty()) { small_ = true; smallVal_ = 0; return; }
 

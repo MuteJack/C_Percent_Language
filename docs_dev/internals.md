@@ -7,7 +7,7 @@
 범위 제한(wrap-around, 정밀도 절삭)은 대입/연산 시점에 소프트웨어적으로 적용된다.
 
 ```
-CpctValue = std::variant<int64_t, double, bool, std::string,
+CpctValue = std::variant<int64_t, uint64_t, double, bool, std::string,
                         std::vector<CpctValue>, BigInt, TypedArray, CpctDict>
 sizeof(CpctValue) ≈ 40~48 bytes (플랫폼/컴파일러에 따라 상이)
 ```
@@ -15,6 +15,7 @@ sizeof(CpctValue) ≈ 40~48 bytes (플랫폼/컴파일러에 따라 상이)
 | 스칼라 타입 | 실제 저장 타입 | 범위 제한 방식 |
 | ----------- | -------------- | -------------- |
 | `int`, `int8`~`int64`, `char` | `int64_t` | `checkIntRange()` wrap-around |
+| `uint`~`uint64` | `uint64_t` | `checkIntRange()` wrap-around |
 | `intbig` | `int64_t` 또는 `BigInt` | 오버플로 시 BigInt 승격 |
 | `bigint` | `BigInt` | 제한 없음 |
 | `float`, `float64` | `double` | IEEE 754 배정밀도 |
@@ -49,6 +50,12 @@ sizeof(CpctValue) ≈ 40~48 bytes (플랫폼/컴파일러에 따라 상이)
 - sized 타입 배열(`int8[]`, `float32[]` 등)은 네이티브 크기로 직접 저장
 - `string[]`은 문자열 포인터 배열 (원소 크기 동적)
 - 다차원 배열은 연속 메모리 또는 행 포인터 배열로 구현
+
+### 문자열 리터럴 내부 저장
+
+문자열 리터럴(`"..."`)은 내부적으로 `char[]`로 저장된다 (C/C++과 동일).
+`string` 변수에 대입 시 `string` 객체로 승격된다.
+리터럴에 대한 `+` 연산은 항상 문자열 연결로 처리된다 (포인터 산술 없음).
 
 ---
 

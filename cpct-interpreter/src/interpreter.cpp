@@ -12,6 +12,7 @@
 // Tagged hash for untyped dict — type prefix prevents "1" (string) vs 1 (int) collision
 std::string CpctDict::taggedHash(const CpctValue& key) {
     if (key.isInt()) return "i:" + std::to_string(key.asInt());
+    if (key.isUInt()) return "u:" + std::to_string(key.asUInt());
     if (key.isString()) return "s:" + key.asString();
     if (key.isBool()) return key.asBool() ? "b:true" : "b:false";
     if (key.isBigInt()) return "B:" + key.asBigInt().toString();
@@ -21,6 +22,7 @@ std::string CpctDict::taggedHash(const CpctValue& key) {
 // Int hash for typed map with int/char/bool keys — no string conversion
 int64_t CpctDict::intHash(const CpctValue& key) {
     if (key.isInt()) return key.asInt();
+    if (key.isUInt()) return static_cast<int64_t>(key.asUInt()); // may wrap for very large uint64
     if (key.isBool()) return key.asBool() ? 1 : 0;
     throw std::runtime_error("Cannot use non-integer as int key");
 }
@@ -136,10 +138,10 @@ CpctValue TypedArray::get(size_t i) const {
         case ArrayElemType::Int16:   return CpctValue(static_cast<int64_t>(std::get<std::vector<int16_t>>(data)[i]));
         case ArrayElemType::Int32:   return CpctValue(static_cast<int64_t>(std::get<std::vector<int32_t>>(data)[i]));
         case ArrayElemType::Int64:   return CpctValue(std::get<std::vector<int64_t>>(data)[i]);
-        case ArrayElemType::UInt8:   return CpctValue(static_cast<int64_t>(std::get<std::vector<uint8_t>>(data)[i]));
-        case ArrayElemType::UInt16:  return CpctValue(static_cast<int64_t>(std::get<std::vector<uint16_t>>(data)[i]));
-        case ArrayElemType::UInt32:  return CpctValue(static_cast<int64_t>(std::get<std::vector<uint32_t>>(data)[i]));
-        case ArrayElemType::UInt64:  return CpctValue(static_cast<int64_t>(std::get<std::vector<uint64_t>>(data)[i]));
+        case ArrayElemType::UInt8:   return CpctValue(static_cast<uint64_t>(std::get<std::vector<uint8_t>>(data)[i]));
+        case ArrayElemType::UInt16:  return CpctValue(static_cast<uint64_t>(std::get<std::vector<uint16_t>>(data)[i]));
+        case ArrayElemType::UInt32:  return CpctValue(static_cast<uint64_t>(std::get<std::vector<uint32_t>>(data)[i]));
+        case ArrayElemType::UInt64:  return CpctValue(std::get<std::vector<uint64_t>>(data)[i]);
         case ArrayElemType::Float32: return CpctValue(static_cast<double>(std::get<std::vector<float>>(data)[i]));
         case ArrayElemType::Float64: return CpctValue(std::get<std::vector<double>>(data)[i]);
         case ArrayElemType::Bool:    return CpctValue(static_cast<bool>(std::get<std::vector<uint8_t>>(data)[i]));
@@ -148,16 +150,15 @@ CpctValue TypedArray::get(size_t i) const {
 }
 
 void TypedArray::set(size_t i, const CpctValue& val) {
-    int64_t iv = val.isInt() ? val.asInt() : static_cast<int64_t>(val.toNumber());
     switch (elemType) {
-        case ArrayElemType::Int8:    std::get<std::vector<int8_t>>(data)[i] = static_cast<int8_t>(iv); break;
-        case ArrayElemType::Int16:   std::get<std::vector<int16_t>>(data)[i] = static_cast<int16_t>(iv); break;
-        case ArrayElemType::Int32:   std::get<std::vector<int32_t>>(data)[i] = static_cast<int32_t>(iv); break;
-        case ArrayElemType::Int64:   std::get<std::vector<int64_t>>(data)[i] = iv; break;
-        case ArrayElemType::UInt8:   std::get<std::vector<uint8_t>>(data)[i] = static_cast<uint8_t>(iv); break;
-        case ArrayElemType::UInt16:  std::get<std::vector<uint16_t>>(data)[i] = static_cast<uint16_t>(iv); break;
-        case ArrayElemType::UInt32:  std::get<std::vector<uint32_t>>(data)[i] = static_cast<uint32_t>(iv); break;
-        case ArrayElemType::UInt64:  std::get<std::vector<uint64_t>>(data)[i] = static_cast<uint64_t>(iv); break;
+        case ArrayElemType::Int8:    std::get<std::vector<int8_t>>(data)[i] = static_cast<int8_t>(val.toInt64()); break;
+        case ArrayElemType::Int16:   std::get<std::vector<int16_t>>(data)[i] = static_cast<int16_t>(val.toInt64()); break;
+        case ArrayElemType::Int32:   std::get<std::vector<int32_t>>(data)[i] = static_cast<int32_t>(val.toInt64()); break;
+        case ArrayElemType::Int64:   std::get<std::vector<int64_t>>(data)[i] = val.toInt64(); break;
+        case ArrayElemType::UInt8:   std::get<std::vector<uint8_t>>(data)[i] = static_cast<uint8_t>(val.isUInt() ? val.asUInt() : static_cast<uint64_t>(val.toInt64())); break;
+        case ArrayElemType::UInt16:  std::get<std::vector<uint16_t>>(data)[i] = static_cast<uint16_t>(val.isUInt() ? val.asUInt() : static_cast<uint64_t>(val.toInt64())); break;
+        case ArrayElemType::UInt32:  std::get<std::vector<uint32_t>>(data)[i] = static_cast<uint32_t>(val.isUInt() ? val.asUInt() : static_cast<uint64_t>(val.toInt64())); break;
+        case ArrayElemType::UInt64:  std::get<std::vector<uint64_t>>(data)[i] = val.isUInt() ? val.asUInt() : static_cast<uint64_t>(val.toInt64()); break;
         case ArrayElemType::Float32: std::get<std::vector<float>>(data)[i] = static_cast<float>(val.toNumber()); break;
         case ArrayElemType::Float64: std::get<std::vector<double>>(data)[i] = val.toNumber(); break;
         case ArrayElemType::Bool:    std::get<std::vector<uint8_t>>(data)[i] = val.toBool() ? 1 : 0; break;
@@ -170,15 +171,21 @@ void TypedArray::set(size_t i, const CpctValue& val) {
 static bool compareCpctValues(const CpctValue& a, const CpctValue& b) {
     // Same-type fast paths
     if (a.isInt() && b.isInt()) return a.asInt() < b.asInt();
+    if (a.isUInt() && b.isUInt()) return a.asUInt() < b.asUInt();
+    // Signed/unsigned cross comparison via safe helpers
+    if (a.isInt() && b.isUInt()) return safeCmpLess(a.asInt(), b.asUInt());
+    if (a.isUInt() && b.isInt()) return safeCmpLess(a.asUInt(), b.asInt());
     if (a.isFloat() && b.isFloat()) return a.asFloat() < b.asFloat();
     if (a.isString() && b.isString()) return a.asString() < b.asString();
     if (a.isBool() && b.isBool()) return !a.asBool() && b.asBool(); // false < true
     if (a.isBigInt() && b.isBigInt()) return a.asBigInt() < b.asBigInt();
-    // BigInt vs int
+    // BigInt vs int/uint
     if (a.isBigInt() && b.isInt()) return a.asBigInt() < BigInt(b.asInt());
     if (a.isInt() && b.isBigInt()) return BigInt(a.asInt()) < b.asBigInt();
+    if (a.isBigInt() && b.isUInt()) return a.asBigInt() < BigInt(b.asUInt());
+    if (a.isUInt() && b.isBigInt()) return BigInt(a.asUInt()) < b.asBigInt();
     // Mixed numeric → double
-    if ((a.isInt() || a.isFloat() || a.isBigInt()) && (b.isInt() || b.isFloat() || b.isBigInt())) {
+    if ((a.isNumericInt() || a.isFloat()) && (b.isNumericInt() || b.isFloat())) {
         return a.toNumber() < b.toNumber();
     }
     // Fallback: convert to string
@@ -211,8 +218,9 @@ static void applyDictPermutation(CpctDict& dict, std::vector<size_t>& perm) {
 // ============== CpctValue ==============
 
 double CpctValue::toNumber() const {
-    if (isInt()) return static_cast<double>(asInt());  // int64_t → double
-    if (isBigInt()) return asBigInt().toDouble();       // BigInt → double (may lose precision)
+    if (isInt()) return static_cast<double>(asInt());
+    if (isUInt()) return static_cast<double>(asUInt());
+    if (isBigInt()) return asBigInt().toDouble();
     if (isFloat()) return asFloat();
     if (isBool()) return asBool() ? 1.0 : 0.0;
     if (isString()) {
@@ -225,6 +233,7 @@ double CpctValue::toNumber() const {
 bool CpctValue::toBool() const {
     if (isBool()) return asBool();
     if (isInt()) return asInt() != 0;
+    if (isUInt()) return asUInt() != 0;
     if (isBigInt()) return asBigInt().toBool();
     if (isFloat()) return asFloat() != 0.0;
     if (isString()) return !asString().empty();
@@ -236,6 +245,7 @@ bool CpctValue::toBool() const {
 
 std::string CpctValue::toString() const {
     if (isInt()) return std::to_string(asInt());
+    if (isUInt()) return std::to_string(asUInt());
     if (isBigInt()) return asBigInt().toString();
     if (isFloat()) {
         double v = asFloat();
@@ -819,6 +829,10 @@ void Interpreter::execPrint(const Stmt* stmt) {
 void Interpreter::execSwitch(const Stmt* stmt) {
     CpctValue switchVal = eval(stmt->condition.get());
 
+    // float types are not allowed in switch (IEEE 754 precision issues)
+    if (switchVal.isFloat())
+        throw std::runtime_error("switch expression cannot be float type");
+
     // Find matching case (or default)
     int matchIdx = -1;
     int defaultIdx = -1;
@@ -828,12 +842,18 @@ void Interpreter::execSwitch(const Stmt* stmt) {
             continue;
         }
         CpctValue caseVal = eval(stmt->caseValues[i].get());
+        if (caseVal.isFloat())
+            throw std::runtime_error("case value cannot be float type");
         // Equality comparison
         bool equal = false;
         if (switchVal.isInt() && caseVal.isInt())
             equal = switchVal.asInt() == caseVal.asInt();
-        else if (switchVal.isFloat() || caseVal.isFloat())
-            equal = switchVal.toNumber() == caseVal.toNumber();
+        else if (switchVal.isUInt() && caseVal.isUInt())
+            equal = switchVal.asUInt() == caseVal.asUInt();
+        else if (switchVal.isInt() && caseVal.isUInt())
+            equal = safeCmpEqual(switchVal.asInt(), caseVal.asUInt());
+        else if (switchVal.isUInt() && caseVal.isInt())
+            equal = safeCmpEqual(switchVal.asUInt(), caseVal.asInt());
         else if (switchVal.isString() && caseVal.isString())
             equal = switchVal.asString() == caseVal.asString();
         else if (switchVal.isBool() && caseVal.isBool())
@@ -866,6 +886,7 @@ void Interpreter::execSwitch(const Stmt* stmt) {
 CpctValue Interpreter::eval(const Expr* expr) {
     switch (expr->kind) {
         case ExprKind::IntLiteral:    return CpctValue(expr->intVal);
+        case ExprKind::BigIntLiteral: return CpctValue(BigInt(expr->strVal));
         case ExprKind::FloatLiteral:  return CpctValue(expr->floatVal);
         case ExprKind::StringLiteral: return CpctValue(expr->strVal);
         case ExprKind::CharLiteral:   return CpctValue(expr->intVal);
@@ -911,7 +932,21 @@ CpctValue Interpreter::eval(const Expr* expr) {
         }
         case ExprKind::PreIncrement: {
             CpctValue& ref = currentEnv_->get(expr->operand->name);
-            if (ref.isNumericInt()) {
+            if (ref.isInt()) {
+                int64_t v = ref.asInt();
+                CpctValue nv = (v == INT64_MAX) ? CpctValue(BigInt(v) + BigInt(int64_t(1))) : CpctValue(v + 1);
+                std::string type = currentEnv_->getType(expr->operand->name);
+                if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
+                    nv = checkIntRange(type, std::move(nv), expr->line);
+                ref = nv;
+            } else if (ref.isUInt()) {
+                uint64_t v = ref.asUInt();
+                CpctValue nv = (v == UINT64_MAX) ? CpctValue(BigInt(v) + BigInt(int64_t(1))) : CpctValue(static_cast<uint64_t>(v + 1));
+                std::string type = currentEnv_->getType(expr->operand->name);
+                if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
+                    nv = checkIntRange(type, std::move(nv), expr->line);
+                ref = nv;
+            } else if (ref.isNumericInt()) {
                 CpctValue nv = CpctValue(ref.toBigInt() + BigInt(int64_t(1)));
                 std::string type = currentEnv_->getType(expr->operand->name);
                 if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
@@ -922,7 +957,21 @@ CpctValue Interpreter::eval(const Expr* expr) {
         }
         case ExprKind::PreDecrement: {
             CpctValue& ref = currentEnv_->get(expr->operand->name);
-            if (ref.isNumericInt()) {
+            if (ref.isInt()) {
+                int64_t v = ref.asInt();
+                CpctValue nv = (v == INT64_MIN) ? CpctValue(BigInt(v) - BigInt(int64_t(1))) : CpctValue(v - 1);
+                std::string type = currentEnv_->getType(expr->operand->name);
+                if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
+                    nv = checkIntRange(type, std::move(nv), expr->line);
+                ref = nv;
+            } else if (ref.isUInt()) {
+                uint64_t v = ref.asUInt();
+                CpctValue nv = (v == 0) ? CpctValue(BigInt(int64_t(0)) - BigInt(int64_t(1))) : CpctValue(static_cast<uint64_t>(v - 1));
+                std::string type = currentEnv_->getType(expr->operand->name);
+                if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
+                    nv = checkIntRange(type, std::move(nv), expr->line);
+                ref = nv;
+            } else if (ref.isNumericInt()) {
                 CpctValue nv = CpctValue(ref.toBigInt() - BigInt(int64_t(1)));
                 std::string type = currentEnv_->getType(expr->operand->name);
                 if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
@@ -934,7 +983,21 @@ CpctValue Interpreter::eval(const Expr* expr) {
         case ExprKind::PostIncrement: {
             CpctValue& ref = currentEnv_->get(expr->operand->name);
             CpctValue old = ref;
-            if (ref.isNumericInt()) {
+            if (ref.isInt()) {
+                int64_t v = ref.asInt();
+                CpctValue nv = (v == INT64_MAX) ? CpctValue(BigInt(v) + BigInt(int64_t(1))) : CpctValue(v + 1);
+                std::string type = currentEnv_->getType(expr->operand->name);
+                if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
+                    nv = checkIntRange(type, std::move(nv), expr->line);
+                ref = nv;
+            } else if (ref.isUInt()) {
+                uint64_t v = ref.asUInt();
+                CpctValue nv = (v == UINT64_MAX) ? CpctValue(BigInt(v) + BigInt(int64_t(1))) : CpctValue(static_cast<uint64_t>(v + 1));
+                std::string type = currentEnv_->getType(expr->operand->name);
+                if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
+                    nv = checkIntRange(type, std::move(nv), expr->line);
+                ref = nv;
+            } else if (ref.isNumericInt()) {
                 CpctValue nv = CpctValue(ref.toBigInt() + BigInt(int64_t(1)));
                 std::string type = currentEnv_->getType(expr->operand->name);
                 if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
@@ -946,7 +1009,21 @@ CpctValue Interpreter::eval(const Expr* expr) {
         case ExprKind::PostDecrement: {
             CpctValue& ref = currentEnv_->get(expr->operand->name);
             CpctValue old = ref;
-            if (ref.isNumericInt()) {
+            if (ref.isInt()) {
+                int64_t v = ref.asInt();
+                CpctValue nv = (v == INT64_MIN) ? CpctValue(BigInt(v) - BigInt(int64_t(1))) : CpctValue(v - 1);
+                std::string type = currentEnv_->getType(expr->operand->name);
+                if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
+                    nv = checkIntRange(type, std::move(nv), expr->line);
+                ref = nv;
+            } else if (ref.isUInt()) {
+                uint64_t v = ref.asUInt();
+                CpctValue nv = (v == 0) ? CpctValue(BigInt(int64_t(0)) - BigInt(int64_t(1))) : CpctValue(static_cast<uint64_t>(v - 1));
+                std::string type = currentEnv_->getType(expr->operand->name);
+                if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
+                    nv = checkIntRange(type, std::move(nv), expr->line);
+                ref = nv;
+            } else if (ref.isNumericInt()) {
                 CpctValue nv = CpctValue(ref.toBigInt() - BigInt(int64_t(1)));
                 std::string type = currentEnv_->getType(expr->operand->name);
                 if (!type.empty() && (isSizedIntegerType(type) || isCharType(type)))
@@ -955,6 +1032,11 @@ CpctValue Interpreter::eval(const Expr* expr) {
             } else if (ref.isFloat()) ref = CpctValue(ref.asFloat() - 1.0);
             return old;
         }
+        case ExprKind::Ternary: {
+            CpctValue cond = eval(expr->operand.get());
+            return cond.toBool() ? eval(expr->left.get()) : eval(expr->right.get());
+        }
+
         case ExprKind::ChainedComparison: {
             // Evaluate each operand once, check consecutive pairs
             auto& operands = expr->chainOperands;
@@ -971,6 +1053,24 @@ CpctValue Interpreter::eval(const Expr* expr) {
                             case TokenType::GT:  result = l > r; break;
                             case TokenType::LTE: result = l <= r; break;
                             case TokenType::GTE: result = l >= r; break;
+                            default: result = false;
+                        }
+                    } else if (prev.isUInt() && curr.isUInt()) {
+                        uint64_t l = prev.asUInt(), r = curr.asUInt();
+                        switch (ops[i]) {
+                            case TokenType::LT:  result = l < r; break;
+                            case TokenType::GT:  result = l > r; break;
+                            case TokenType::LTE: result = l <= r; break;
+                            case TokenType::GTE: result = l >= r; break;
+                            default: result = false;
+                        }
+                    } else if ((prev.isInt() || prev.isUInt()) && (curr.isInt() || curr.isUInt())) {
+                        // Mixed signed/unsigned — use safe comparison helpers
+                        switch (ops[i]) {
+                            case TokenType::LT:  result = prev.isInt() ? safeCmpLess(prev.asInt(), curr.asUInt()) : safeCmpLess(prev.asUInt(), curr.asInt()); break;
+                            case TokenType::GT:  result = prev.isInt() ? safeCmpLess(curr.asUInt(), prev.asInt()) : safeCmpLess(curr.asInt(), prev.asUInt()); break;
+                            case TokenType::LTE: result = prev.isInt() ? safeCmpLessEqual(prev.asInt(), curr.asUInt()) : safeCmpLessEqual(prev.asUInt(), curr.asInt()); break;
+                            case TokenType::GTE: result = prev.isInt() ? safeCmpLessEqual(curr.asUInt(), prev.asInt()) : safeCmpLessEqual(curr.asInt(), prev.asUInt()); break;
                             default: result = false;
                         }
                     } else {
@@ -1015,8 +1115,14 @@ CpctValue Interpreter::evalBinaryOp(const Expr* expr) {
     if (expr->op == TokenType::AND) return CpctValue(left.toBool() && right.toBool());
     if (expr->op == TokenType::OR)  return CpctValue(left.toBool() || right.toBool());
 
-    // Equality — handle BigInt
+    // Equality — handle int/uint/BigInt
     if (expr->op == TokenType::EQ) {
+        // Fast paths for same-type
+        if (left.isInt() && right.isInt()) return CpctValue(left.asInt() == right.asInt());
+        if (left.isUInt() && right.isUInt()) return CpctValue(left.asUInt() == right.asUInt());
+        // Safe cross-type int/uint comparison
+        if (left.isInt() && right.isUInt()) return CpctValue(safeCmpEqual(left.asInt(), right.asUInt()));
+        if (left.isUInt() && right.isInt()) return CpctValue(safeCmpEqual(left.asUInt(), right.asInt()));
         if (left.isNumericInt() && right.isNumericInt())
             return CpctValue(left.toBigInt() == right.toBigInt());
         if (left.isString() && right.isString()) return CpctValue(left.asString() == right.asString());
@@ -1024,6 +1130,10 @@ CpctValue Interpreter::evalBinaryOp(const Expr* expr) {
         return CpctValue(left.toNumber() == right.toNumber());
     }
     if (expr->op == TokenType::NEQ) {
+        if (left.isInt() && right.isInt()) return CpctValue(left.asInt() != right.asInt());
+        if (left.isUInt() && right.isUInt()) return CpctValue(left.asUInt() != right.asUInt());
+        if (left.isInt() && right.isUInt()) return CpctValue(!safeCmpEqual(left.asInt(), right.asUInt()));
+        if (left.isUInt() && right.isInt()) return CpctValue(!safeCmpEqual(left.asUInt(), right.asInt()));
         if (left.isNumericInt() && right.isNumericInt())
             return CpctValue(left.toBigInt() != right.toBigInt());
         if (left.isString() && right.isString()) return CpctValue(left.asString() != right.asString());
@@ -1031,16 +1141,16 @@ CpctValue Interpreter::evalBinaryOp(const Expr* expr) {
         return CpctValue(left.toNumber() != right.toNumber());
     }
 
-    // Integer arithmetic (int64 fast path + BigInt overflow promotion)
+    // Integer arithmetic (int64/uint64 fast path + BigInt overflow promotion)
     if (left.isNumericInt() && right.isNumericInt()) {
-        // Fast path: both fit in int64
+        // Fast path: both signed int64
         if (left.isInt() && right.isInt()) {
             int64_t l = left.asInt(), r = right.asInt();
             int64_t result;
             switch (expr->op) {
                 case TokenType::PLUS:
                     if (!__builtin_add_overflow(l, r, &result)) return CpctValue(result);
-                    return CpctValue(BigInt(l) + BigInt(r)); // overflow → BigInt
+                    return CpctValue(BigInt(l) + BigInt(r));
                 case TokenType::MINUS:
                     if (!__builtin_sub_overflow(l, r, &result)) return CpctValue(result);
                     return CpctValue(BigInt(l) - BigInt(r));
@@ -1072,7 +1182,68 @@ CpctValue Interpreter::evalBinaryOp(const Expr* expr) {
                 default: break;
             }
         }
-        // At least one is BigInt — use BigInt arithmetic
+        // Fast path: both unsigned uint64
+        if (left.isUInt() && right.isUInt()) {
+            uint64_t l = left.asUInt(), r = right.asUInt();
+            switch (expr->op) {
+                case TokenType::PLUS: {
+                    uint64_t result;
+                    if (!__builtin_add_overflow(l, r, &result)) return CpctValue(result);
+                    return CpctValue(BigInt(l) + BigInt(r));
+                }
+                case TokenType::MINUS: {
+                    if (l >= r) return CpctValue(static_cast<uint64_t>(l - r));
+                    // Underflow → BigInt (result is negative)
+                    return CpctValue(BigInt(l) - BigInt(r));
+                }
+                case TokenType::STAR: {
+                    uint64_t result;
+                    if (!__builtin_mul_overflow(l, r, &result)) return CpctValue(result);
+                    return CpctValue(BigInt(l) * BigInt(r));
+                }
+                case TokenType::SLASH:
+                    if (r == 0) throw RuntimeError("Division by zero at line " + std::to_string(expr->line));
+                    return CpctValue(static_cast<uint64_t>(l / r));
+                case TokenType::PERCENT:
+                    if (r == 0) throw RuntimeError("Modulo by zero at line " + std::to_string(expr->line));
+                    return CpctValue(static_cast<uint64_t>(l % r));
+                case TokenType::DIVMOD: {
+                    if (r == 0) throw RuntimeError("Division by zero in /% at line " + std::to_string(expr->line));
+                    std::vector<CpctValue> res = { CpctValue(static_cast<uint64_t>(l / r)), CpctValue(static_cast<uint64_t>(l % r)) };
+                    return CpctValue(std::move(res));
+                }
+                case TokenType::POWER: {
+                    BigInt base(l), res(int64_t(1));
+                    BigInt exp(r);
+                    for (uint64_t i = 0; i < r; i++) res = res * base;
+                    return CpctValue(std::move(res));
+                }
+                case TokenType::LT:  return CpctValue(l < r);
+                case TokenType::GT:  return CpctValue(l > r);
+                case TokenType::LTE: return CpctValue(l <= r);
+                case TokenType::GTE: return CpctValue(l >= r);
+                default: break;
+            }
+        }
+        // Mixed signed/unsigned fast path — use safe comparison helpers for comparisons
+        if ((left.isInt() && right.isUInt()) || (left.isUInt() && right.isInt())) {
+            switch (expr->op) {
+                case TokenType::LT:
+                    if (left.isInt()) return CpctValue(safeCmpLess(left.asInt(), right.asUInt()));
+                    return CpctValue(safeCmpLess(left.asUInt(), right.asInt()));
+                case TokenType::GT:
+                    if (left.isInt()) return CpctValue(safeCmpLess(right.asUInt(), left.asInt()));
+                    return CpctValue(safeCmpLess(right.asInt(), left.asUInt()));
+                case TokenType::LTE:
+                    if (left.isInt()) return CpctValue(safeCmpLessEqual(left.asInt(), right.asUInt()));
+                    return CpctValue(safeCmpLessEqual(left.asUInt(), right.asInt()));
+                case TokenType::GTE:
+                    if (left.isInt()) return CpctValue(safeCmpLessEqual(right.asUInt(), left.asInt()));
+                    return CpctValue(safeCmpLessEqual(right.asInt(), left.asUInt()));
+                default: break; // arithmetic falls through to BigInt
+            }
+        }
+        // At least one is BigInt or mixed signed/unsigned arithmetic — use BigInt
         BigInt l = left.toBigInt(), r = right.toBigInt();
         switch (expr->op) {
             case TokenType::PLUS:    return CpctValue(l + r);
@@ -1139,6 +1310,14 @@ CpctValue Interpreter::evalUnaryOp(const Expr* expr) {
                     return CpctValue(-BigInt(val.asInt()));
                 return CpctValue(-val.asInt());
             }
+            if (val.isUInt()) {
+                // Negating unsigned: result may be negative → BigInt or int64
+                uint64_t uv = val.asUInt();
+                if (uv == 0) return CpctValue(uint64_t(0));
+                if (uv <= static_cast<uint64_t>(INT64_MAX))
+                    return CpctValue(-static_cast<int64_t>(uv));
+                return CpctValue(-BigInt(uv));
+            }
             if (val.isBigInt()) return CpctValue(-val.asBigInt());
             return CpctValue(-val.toNumber());
         case TokenType::NOT:
@@ -1167,7 +1346,7 @@ CpctValue Interpreter::evalCompoundAssign(const Expr* expr) {
 
     CpctValue result;
     if (cur.isNumericInt() && right.isNumericInt()) {
-        // Fast path: both int64
+        // Fast path: both signed int64
         if (cur.isInt() && right.isInt()) {
             int64_t l = cur.asInt(), r = right.asInt();
             int64_t res;
@@ -1189,8 +1368,33 @@ CpctValue Interpreter::evalCompoundAssign(const Expr* expr) {
                     result = CpctValue(l % r); break;
                 default: throw RuntimeError("Unknown compound operator");
             }
+        } else if (cur.isUInt() && right.isUInt()) {
+            // Fast path: both unsigned uint64
+            uint64_t l = cur.asUInt(), r = right.asUInt();
+            switch (expr->op) {
+                case TokenType::PLUS_ASSIGN: {
+                    uint64_t res;
+                    if (!__builtin_add_overflow(l, r, &res)) { result = CpctValue(res); break; }
+                    result = CpctValue(BigInt(l) + BigInt(r)); break;
+                }
+                case TokenType::MINUS_ASSIGN:
+                    if (l >= r) { result = CpctValue(static_cast<uint64_t>(l - r)); break; }
+                    result = CpctValue(BigInt(l) - BigInt(r)); break;
+                case TokenType::STAR_ASSIGN: {
+                    uint64_t res;
+                    if (!__builtin_mul_overflow(l, r, &res)) { result = CpctValue(res); break; }
+                    result = CpctValue(BigInt(l) * BigInt(r)); break;
+                }
+                case TokenType::SLASH_ASSIGN:
+                    if (r == 0) throw RuntimeError("Division by zero");
+                    result = CpctValue(static_cast<uint64_t>(l / r)); break;
+                case TokenType::PERCENT_ASSIGN:
+                    if (r == 0) throw RuntimeError("Division by zero");
+                    result = CpctValue(static_cast<uint64_t>(l % r)); break;
+                default: throw RuntimeError("Unknown compound operator");
+            }
         } else {
-            // BigInt path
+            // BigInt path (mixed signed/unsigned or BigInt involved)
             BigInt l = cur.toBigInt(), r = right.toBigInt();
             switch (expr->op) {
                 case TokenType::PLUS_ASSIGN:  result = CpctValue(l + r); break;
@@ -1247,10 +1451,10 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
             if (typeName == "float32") return CpctValue(static_cast<double>(3.4028234663852886e+38));
             if (typeName == "char") return CpctValue(static_cast<int64_t>(127));
             if (typeName == "bool") return CpctValue(static_cast<int64_t>(1));
-            if (typeName == "uint" || typeName == "uint32") return CpctValue(static_cast<int64_t>(UINT32_MAX));
-            if (typeName == "uint8") return CpctValue(static_cast<int64_t>(UINT8_MAX));
-            if (typeName == "uint16") return CpctValue(static_cast<int64_t>(UINT16_MAX));
-            if (typeName == "uint64") return CpctValue(BigInt("18446744073709551615"));
+            if (typeName == "uint" || typeName == "uint32") return CpctValue(static_cast<uint64_t>(UINT32_MAX));
+            if (typeName == "uint8") return CpctValue(static_cast<uint64_t>(UINT8_MAX));
+            if (typeName == "uint16") return CpctValue(static_cast<uint64_t>(UINT16_MAX));
+            if (typeName == "uint64") return CpctValue(UINT64_MAX);
             throw RuntimeError("max() is not defined for type '" + typeName + "'");
         }
         if (method == "min") {
@@ -1263,7 +1467,7 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
             if (typeName == "char") return CpctValue(static_cast<int64_t>(-128));
             if (typeName == "bool") return CpctValue(static_cast<int64_t>(0));
             if (typeName == "uint" || typeName == "uint8" || typeName == "uint16" ||
-                typeName == "uint32" || typeName == "uint64") return CpctValue(static_cast<int64_t>(0));
+                typeName == "uint32" || typeName == "uint64") return CpctValue(uint64_t(0));
             throw RuntimeError("min() is not defined for type '" + typeName + "'");
         }
         throw RuntimeError("Unknown type method '" + method + "' for type '" + typeName + "'");
@@ -1332,9 +1536,9 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
         if (!vecVal.isArray())
             throw RuntimeError("insert() first argument must be a vector");
         CpctValue idxVal = eval(expr->args[1].get());
-        if (!idxVal.isInt())
+        if (!idxVal.isInt() && !idxVal.isUInt())
             throw RuntimeError("insert() index must be an integer");
-        int64_t idx = idxVal.asInt();
+        int64_t idx = idxVal.toInt64();
         auto& arr = vecVal.asArray();
         if (idx < 0 || idx > static_cast<int64_t>(arr.size()))
             throw RuntimeError("insert() index out of range at line " + std::to_string(expr->line));
@@ -1358,9 +1562,9 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
         if (!vecVal.isArray())
             throw RuntimeError("erase() first argument must be a vector");
         CpctValue idxVal = eval(expr->args[1].get());
-        if (!idxVal.isInt())
+        if (!idxVal.isInt() && !idxVal.isUInt())
             throw RuntimeError("erase() index must be an integer");
-        int64_t idx = idxVal.asInt();
+        int64_t idx = idxVal.toInt64();
         auto& arr = vecVal.asArray();
         if (idx < 0) idx += static_cast<int64_t>(arr.size());
         if (idx < 0 || idx >= static_cast<int64_t>(arr.size()))
@@ -1591,6 +1795,7 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
         if (val.isDict()) return CpctValue(std::string("dict"));
         std::string typeName;
         if (val.isInt()) typeName = "int";
+        else if (val.isUInt()) typeName = "uint";
         else if (val.isBigInt()) typeName = "bigint";
         else if (val.isFloat()) typeName = "float";
         else if (val.isBool()) typeName = "bool";
@@ -1720,15 +1925,15 @@ CpctValue Interpreter::evalArrayAccess(const Expr* expr) {
     }
 
     if (!arr.isAnyArray()) throw RuntimeError("Cannot index non-array/dict value at line " + std::to_string(expr->line));
-    if (!idx.isInt()) throw RuntimeError("Array index must be an integer at line " + std::to_string(expr->line));
+    if (!idx.isInt() && !idx.isUInt()) throw RuntimeError("Array index must be an integer at line " + std::to_string(expr->line));
 
-    int64_t i = idx.asInt();
+    int64_t i = idx.toInt64();
     int64_t size = arr.isTypedArray() ? static_cast<int64_t>(arr.asTypedArray().size())
                                       : static_cast<int64_t>(arr.asArray().size());
 
     if (i < 0) i += size;
     if (i < 0 || i >= size) {
-        throw RuntimeError("Array index out of bounds: " + std::to_string(idx.asInt()) +
+        throw RuntimeError("Array index out of bounds: " + idx.toString() +
                           " (size: " + std::to_string(size) + ") at line " + std::to_string(expr->line));
     }
 
@@ -1778,13 +1983,13 @@ CpctValue Interpreter::evalArrayAssign(const Expr* expr) {
     // TypedArray: direct single-index access
     if (rootVal.isTypedArray()) {
         CpctValue idx = eval(expr->indexExpr.get());
-        if (!idx.isInt()) throw RuntimeError("Array index must be an integer at line " + std::to_string(expr->line));
-        int64_t i = idx.asInt();
+        if (!idx.isInt() && !idx.isUInt()) throw RuntimeError("Array index must be an integer at line " + std::to_string(expr->line));
+        int64_t i = idx.toInt64();
         auto& ta = rootVal.asTypedArray();
         int64_t size = static_cast<int64_t>(ta.size());
         if (i < 0) i += size;
         if (i < 0 || i >= size) {
-            throw RuntimeError("Array index out of bounds: " + std::to_string(idx.asInt()) +
+            throw RuntimeError("Array index out of bounds: " + idx.toString() +
                               " (size: " + std::to_string(size) + ") at line " + std::to_string(expr->line));
         }
         ta.set(static_cast<size_t>(i), val);
@@ -1847,7 +2052,19 @@ CpctValue Interpreter::evalArrayCompoundAssign(const Expr* expr) {
                 default: throw RuntimeError("Unknown compound assign op");
             }
             elemRef = CpctValue(result);
-        } else if ((lhs.isInt() || lhs.isFloat()) && (right.isInt() || right.isFloat())) {
+        } else if (lhs.isUInt() && right.isUInt()) {
+            uint64_t l = lhs.asUInt(), r = right.asUInt();
+            uint64_t result = 0;
+            switch (expr->op) {
+                case TokenType::PLUS_ASSIGN: result = l + r; break;
+                case TokenType::MINUS_ASSIGN: result = l - r; break;
+                case TokenType::STAR_ASSIGN: result = l * r; break;
+                case TokenType::SLASH_ASSIGN: result = r != 0 ? l / r : throw RuntimeError("Division by zero"); break;
+                case TokenType::PERCENT_ASSIGN: result = r != 0 ? l % r : throw RuntimeError("Modulo by zero"); break;
+                default: throw RuntimeError("Unknown compound assign op");
+            }
+            elemRef = CpctValue(result);
+        } else if ((lhs.isInt() || lhs.isUInt() || lhs.isFloat()) && (right.isInt() || right.isUInt() || right.isFloat())) {
             double l = lhs.toNumber(), r = right.toNumber();
             double result = 0;
             switch (expr->op) {
@@ -1870,8 +2087,8 @@ CpctValue Interpreter::evalArrayCompoundAssign(const Expr* expr) {
     // TypedArray: direct single-index access
     if (rootVal.isTypedArray()) {
         CpctValue idx = eval(expr->indexExpr.get());
-        if (!idx.isInt()) throw RuntimeError("Array index must be an integer at line " + std::to_string(expr->line));
-        int64_t i = idx.asInt();
+        if (!idx.isInt() && !idx.isUInt()) throw RuntimeError("Array index must be an integer at line " + std::to_string(expr->line));
+        int64_t i = idx.toInt64();
         auto& ta = rootVal.asTypedArray();
         int64_t sz = static_cast<int64_t>(ta.size());
         if (i < 0) i += sz;
@@ -1882,7 +2099,7 @@ CpctValue Interpreter::evalArrayCompoundAssign(const Expr* expr) {
         CpctValue right = eval(expr->right.get());
         CpctValue result;
         // Compute (reuse numeric logic inline)
-        if (elemVal.isNumericInt() && right.isNumericInt() && elemVal.isInt() && right.isInt()) {
+        if (elemVal.isInt() && right.isInt()) {
             int64_t l = elemVal.asInt(), r = right.asInt(); int64_t res;
             switch (expr->op) {
                 case TokenType::PLUS_ASSIGN: if (!__builtin_add_overflow(l,r,&res)){result=CpctValue(res);break;} result=CpctValue(BigInt(l)+BigInt(r));break;
@@ -1890,6 +2107,16 @@ CpctValue Interpreter::evalArrayCompoundAssign(const Expr* expr) {
                 case TokenType::STAR_ASSIGN: if (!__builtin_mul_overflow(l,r,&res)){result=CpctValue(res);break;} result=CpctValue(BigInt(l)*BigInt(r));break;
                 case TokenType::SLASH_ASSIGN: if(r==0)throw RuntimeError("Division by zero");result=CpctValue(l/r);break;
                 case TokenType::PERCENT_ASSIGN: if(r==0)throw RuntimeError("Division by zero");result=CpctValue(l%r);break;
+                default: throw RuntimeError("Unknown compound operator");
+            }
+        } else if (elemVal.isUInt() && right.isUInt()) {
+            uint64_t l = elemVal.asUInt(), r = right.asUInt();
+            switch (expr->op) {
+                case TokenType::PLUS_ASSIGN: {uint64_t res; if(!__builtin_add_overflow(l,r,&res)){result=CpctValue(res);break;} result=CpctValue(BigInt(l)+BigInt(r));break;}
+                case TokenType::MINUS_ASSIGN: if(l>=r){result=CpctValue(static_cast<uint64_t>(l-r));break;} result=CpctValue(BigInt(l)-BigInt(r));break;
+                case TokenType::STAR_ASSIGN: {uint64_t res; if(!__builtin_mul_overflow(l,r,&res)){result=CpctValue(res);break;} result=CpctValue(BigInt(l)*BigInt(r));break;}
+                case TokenType::SLASH_ASSIGN: if(r==0)throw RuntimeError("Division by zero");result=CpctValue(static_cast<uint64_t>(l/r));break;
+                case TokenType::PERCENT_ASSIGN: if(r==0)throw RuntimeError("Division by zero");result=CpctValue(static_cast<uint64_t>(l%r));break;
                 default: throw RuntimeError("Unknown compound operator");
             }
         } else {
@@ -1951,6 +2178,30 @@ CpctValue Interpreter::evalArrayCompoundAssign(const Expr* expr) {
                 case TokenType::PERCENT_ASSIGN:
                     if (r == 0) throw RuntimeError("Division by zero");
                     result = CpctValue(l % r); break;
+                default: throw RuntimeError("Unknown compound operator");
+            }
+        } else if (elem.isUInt() && right.isUInt()) {
+            uint64_t l = elem.asUInt(), r = right.asUInt();
+            switch (expr->op) {
+                case TokenType::PLUS_ASSIGN: {
+                    uint64_t res;
+                    if (!__builtin_add_overflow(l, r, &res)) { result = CpctValue(res); break; }
+                    result = CpctValue(BigInt(l) + BigInt(r)); break;
+                }
+                case TokenType::MINUS_ASSIGN:
+                    if (l >= r) { result = CpctValue(static_cast<uint64_t>(l - r)); break; }
+                    result = CpctValue(BigInt(l) - BigInt(r)); break;
+                case TokenType::STAR_ASSIGN: {
+                    uint64_t res;
+                    if (!__builtin_mul_overflow(l, r, &res)) { result = CpctValue(res); break; }
+                    result = CpctValue(BigInt(l) * BigInt(r)); break;
+                }
+                case TokenType::SLASH_ASSIGN:
+                    if (r == 0) throw RuntimeError("Division by zero");
+                    result = CpctValue(static_cast<uint64_t>(l / r)); break;
+                case TokenType::PERCENT_ASSIGN:
+                    if (r == 0) throw RuntimeError("Division by zero");
+                    result = CpctValue(static_cast<uint64_t>(l % r)); break;
                 default: throw RuntimeError("Unknown compound operator");
             }
         } else {
@@ -2219,23 +2470,72 @@ CpctValue Interpreter::checkIntRange(const std::string& typeName, CpctValue val,
     // 'intbig'/'bigint' types are dynamic (BigInt), no range check needed
     if (isDynamicIntType(typeName)) return val;
 
-    // Convert to int64 if needed for sized types
+    auto& info = getIntTypeInfo(typeName);
+
+    // Special handling for uint64: store as uint64_t natively
+    if (info.isUint64Full) {
+        uint64_t uv;
+        if (val.isUInt()) {
+            uv = val.asUInt();
+        } else if (val.isInt()) {
+            // Negative int wraps around: -1 → UINT64_MAX
+            uv = static_cast<uint64_t>(val.asInt());
+        } else if (val.isBigInt()) {
+            BigInt bv = val.asBigInt();
+            // Wrap into [0, UINT64_MAX] via modular reduction
+            BigInt range = BigInt("18446744073709551616"); // 2^64
+            BigInt rem = bv % range;
+            if (rem < BigInt(int64_t(0))) rem = rem + range;
+            if (rem.fitsInt64()) uv = static_cast<uint64_t>(rem.toInt64());
+            else {
+                // Value exceeds int64 but fits uint64 — extract from string
+                std::string s = rem.toString();
+                uv = std::stoull(s);
+            }
+        } else if (val.isFloat()) {
+            uv = static_cast<uint64_t>(val.asFloat());
+        } else if (val.isBool()) {
+            uv = val.asBool() ? 1 : 0;
+        } else {
+            throw RuntimeError("Cannot assign non-numeric value to " + typeName +
+                              " at line " + std::to_string(line));
+        }
+        return CpctValue(uv);
+    }
+
+    // For other unsigned types (uint8~uint32), convert to uint64_t then range-check
+    bool isUnsigned = isUnsignedType(typeName);
+
+    // Convert to int64 for range checking
     int64_t v;
     if (val.isInt()) {
         v = val.asInt();
+    } else if (val.isUInt()) {
+        uint64_t uv = val.asUInt();
+        // If value fits int64, use directly; otherwise wrap via BigInt
+        if (uv <= static_cast<uint64_t>(INT64_MAX)) {
+            v = static_cast<int64_t>(uv);
+        } else {
+            // Large uint64 → BigInt path for wrapping
+            BigInt bv(uv);
+            uint64_t range = static_cast<uint64_t>(info.maxVal) - static_cast<uint64_t>(info.minVal) + 1;
+            BigInt rangeBI(static_cast<int64_t>(range));
+            BigInt rem = bv % rangeBI;
+            v = rem.fitsInt64() ? rem.toInt64() : 0;
+            if (v > info.maxVal) v -= static_cast<int64_t>(range);
+            else if (v < info.minVal) v += static_cast<int64_t>(range);
+            if (isUnsigned) return CpctValue(static_cast<uint64_t>(v));
+            return CpctValue(v);
+        }
     } else if (val.isBigInt()) {
-        // BigInt → wrap into sized type range
-        // Use modular reduction: get remainder within range width
         BigInt bv = val.asBigInt();
-        auto& info = getIntTypeInfo(typeName);
         uint64_t range = static_cast<uint64_t>(info.maxVal) - static_cast<uint64_t>(info.minVal) + 1;
         BigInt rangeBI(static_cast<int64_t>(range));
         BigInt rem = bv % rangeBI;
-        // rem is now in (-range, range), convert to int64
         v = rem.fitsInt64() ? rem.toInt64() : 0;
-        // Wrap into [minVal, maxVal]
         if (v > info.maxVal) v -= static_cast<int64_t>(range);
         else if (v < info.minVal) v += static_cast<int64_t>(range);
+        if (isUnsigned) return CpctValue(static_cast<uint64_t>(v));
         return CpctValue(v);
     } else if (val.isFloat()) {
         v = static_cast<int64_t>(val.asFloat());
@@ -2247,19 +2547,18 @@ CpctValue Interpreter::checkIntRange(const std::string& typeName, CpctValue val,
     }
 
     // Wrap-around for sized integer types (like C/C++)
-    auto& info = getIntTypeInfo(typeName);
     if (v < info.minVal || v > info.maxVal) {
         uint64_t range = static_cast<uint64_t>(info.maxVal) - static_cast<uint64_t>(info.minVal) + 1;
-        // Normalize into [0, range) then shift to [minVal, maxVal]
         int64_t offset = v - info.minVal;
-        // Use unsigned modulo to handle negative values correctly
         uint64_t uoffset = static_cast<uint64_t>(offset) % range;
         v = static_cast<int64_t>(uoffset) + info.minVal;
     }
+    if (isUnsigned) return CpctValue(static_cast<uint64_t>(v));
     return CpctValue(v);
 }
 
 CpctValue Interpreter::makeDefaultValue(const std::string& typeName) {
+    if (isUnsignedType(typeName)) return CpctValue(uint64_t(0));
     if (isIntegerType(typeName) || isCharType(typeName)) return CpctValue(int64_t(0));
     if (isFloatType(typeName)) return CpctValue(0.0);
     if (typeName == "bool") return CpctValue(false);
@@ -2326,16 +2625,16 @@ CpctValue Interpreter::coerceDictValue(const std::string& valType, CpctValue val
 CpctValue& Interpreter::resolveArrayElement(CpctValue& arr, const Expr* indexExpr, int line) {
     CpctValue idx = eval(indexExpr);
     if (!arr.isArray()) throw RuntimeError("Cannot index non-array value at line " + std::to_string(line));
-    if (!idx.isInt()) throw RuntimeError("Array index must be an integer at line " + std::to_string(line));
+    if (!idx.isInt() && !idx.isUInt()) throw RuntimeError("Array index must be an integer at line " + std::to_string(line));
 
-    int64_t i = idx.asInt();
+    int64_t i = idx.toInt64();
     auto& vec = arr.asArray();
     int64_t size = static_cast<int64_t>(vec.size());
 
     // Negative index support
     if (i < 0) i += size;
     if (i < 0 || i >= size) {
-        throw RuntimeError("Array index out of bounds: " + std::to_string(idx.asInt()) +
+        throw RuntimeError("Array index out of bounds: " + idx.toString() +
                           " (size: " + std::to_string(size) + ") at line " + std::to_string(line));
     }
     return vec[i];

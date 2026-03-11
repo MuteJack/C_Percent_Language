@@ -14,7 +14,7 @@ using StmtPtr = std::unique_ptr<Stmt>;
 // ============== Expressions ==============
 
 enum class ExprKind {
-    IntLiteral, FloatLiteral, StringLiteral, CharLiteral, BoolLiteral,
+    IntLiteral, BigIntLiteral, FloatLiteral, StringLiteral, CharLiteral, BoolLiteral,
     Identifier, BinaryOp, UnaryOp, Assign, CompoundAssign,
     FunctionCall, ArrayAccess, ArrayLiteral,
     PreIncrement, PreDecrement, PostIncrement, PostDecrement,
@@ -23,6 +23,7 @@ enum class ExprKind {
     ArrayAssign, ArrayCompoundAssign, ArraySlice,
     DictLiteral,
     ChainedComparison,
+    Ternary,
 };
 
 struct Expr {
