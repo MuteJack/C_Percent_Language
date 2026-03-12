@@ -1,3 +1,12 @@
+// ast.h
+/*
+Abstract Syntax Tree (AST) node definitions.
+Two kinds of nodes exist: Expr (expressions) and Stmt (statements),
+distinguished by ExprKind / StmtKind enums.
+Only specific fields of the Expr/Stmt structs are used depending on the node kind.
+AST nodes are created via make* factory functions.
+*/
+
 #pragma once
 #include <string>
 #include <vector>
@@ -26,6 +35,22 @@ enum class ExprKind {
     Ternary,
 };
 
+// Expression node — all ExprKinds share a single struct (tagged union style).
+// Active fields depend on kind:
+//   IntLiteral/CharLiteral: intVal
+//   FloatLiteral: floatVal
+//   StringLiteral/BigIntLiteral: strVal
+//   BoolLiteral: boolVal
+//   Identifier/Assign/CompoundAssign: name
+//   BinaryOp: op, left, right
+//   UnaryOp/PreIncrement/PreDecrement: op, operand
+//   FunctionCall: funcName, args
+//   ArrayAccess: arrayExpr, indexExpr
+//   ArraySlice: arrayExpr, indexExpr, endIndexExpr
+//   ArrayLiteral/FStringExpr: elements
+//   DictLiteral: elements(keys), dictValues(values)
+//   ChainedComparison: chainOperands, chainOps
+//   Ternary: operand(condition), left(true branch), right(false branch)
 struct Expr {
     ExprKind kind;
     int line;
@@ -36,25 +61,25 @@ struct Expr {
     std::string strVal;
     bool boolVal;
 
-    // Identifier
+    // Identifier name (used by Identifier, Assign, CompoundAssign)
     std::string name;
 
-    // Binary / Unary
+    // Binary/unary operations
     TokenType op;
     ExprPtr left;
     ExprPtr right;
-    ExprPtr operand; // for unary
+    ExprPtr operand; // unary operand
 
     // Function call
     std::string funcName;
     std::vector<ExprPtr> args;
 
-    // Array
-    ExprPtr arrayExpr; // for array access
-    ExprPtr indexExpr;
-    ExprPtr endIndexExpr; // for array slice [start:end]
-    std::vector<ExprPtr> elements; // for array literal / dict keys
-    std::vector<ExprPtr> dictValues; // for dict literal values
+    // Array/dictionary related
+    ExprPtr arrayExpr;    // target expression for array access
+    ExprPtr indexExpr;     // index expression
+    ExprPtr endIndexExpr;  // slice end index [start:end]
+    std::vector<ExprPtr> elements;    // array literal elements / dict keys
+    std::vector<ExprPtr> dictValues;  // dict values
 
     // Chained comparison: a < b < c → operands [a,b,c], ops [<,<]
     std::vector<ExprPtr> chainOperands;
@@ -64,7 +89,7 @@ struct Expr {
              boolVal(false), op(TokenType::ERROR) {}
 };
 
-// Helper factory functions
+// AST node factory functions — conveniently create nodes for each ExprKind/StmtKind
 inline ExprPtr makeIntLiteral(int64_t val, int line) {
     auto e = std::make_unique<Expr>();
     e->kind = ExprKind::IntLiteral;
@@ -246,52 +271,59 @@ struct FuncParam {
     std::string name;
 };
 
+// Statement node — like Expr, active fields depend on StmtKind.
+//   VarDecl: varType, varName, initExpr, arrayDimSizes
+//   ExprStmt: expr
+//   Block / FuncDecl: body
+//   If / While / DoWhile: condition, thenBranch, elseBranch
+//   For: initStmt, condition, increment, thenBranch
+//   ForEach: varType, varName, expr(iterable), thenBranch
+//   ForN: expr(repeat count), thenBranch
+//   FuncDecl: funcReturnType, funcName, params, body
+//   Print: printArgs, printNewline
+//   Switch: condition, caseValues, caseBodies
 struct Stmt {
     StmtKind kind;
     int line;
 
-    // VarDecl
+    // Variable declaration
     std::string varType;
     std::string varName;
     ExprPtr initExpr;
-    std::vector<ExprPtr> arrayDimSizes; // for array decl: size per dimension (nullptr = inferred)
+    std::vector<ExprPtr> arrayDimSizes; // dimension sizes for array declaration (nullptr = inferred)
 
-    // ExprStmt
+    // Expression statement
     ExprPtr expr;
 
-    // Block
+    // Block / function body
     std::vector<StmtPtr> body;
 
-    // If
+    // Conditionals / loops
     ExprPtr condition;
     StmtPtr thenBranch;
     StmtPtr elseBranch;
 
-    // While / For
-    StmtPtr initStmt;   // for init
-    ExprPtr increment;   // for increment
+    // for loop
+    StmtPtr initStmt;   // initializer
+    ExprPtr increment;   // increment expression
 
-    // FuncDecl
+    // Function declaration
     std::string funcReturnType;
     std::string funcName;
     std::vector<FuncParam> params;
-    // body is reused for function body
 
-    // Print
+    // print / println
     std::vector<ExprPtr> printArgs;
     bool printNewline = false; // true for println
 
-    // Switch
-    // condition = switch expression
-    // caseValues[i] = case expression (nullptr = default)
-    // caseBodies[i] = statements for that case
-    std::vector<ExprPtr> caseValues;
+    // switch-case
+    std::vector<ExprPtr> caseValues;         // nullptr = default
     std::vector<std::vector<StmtPtr>> caseBodies;
 
     Stmt() : kind(StmtKind::ExprStmt), line(0) {}
 };
 
-// Helper factory functions
+// Statement node factory functions
 inline StmtPtr makeVarDecl(const std::string& type, const std::string& name, ExprPtr init, int line) {
     auto s = std::make_unique<Stmt>();
     s->kind = StmtKind::VarDecl;

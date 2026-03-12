@@ -1,3 +1,8 @@
+// bigint.h
+// Arbitrary-precision integer (BigInt) class declaration.
+// Internally uses a base-10^9 digit array.
+// Small values that fit in int64_t use the small_ flag for a fast path.
+// Used when intbig/bigint types auto-promote to BigInt on overflow.
 #pragma once
 #include <string>
 #include <vector>
@@ -6,8 +11,6 @@
 #include <algorithm>
 #include <iostream>
 
-// BigInt: arbitrary precision integer using base 10^9 digits
-// Small values (fits in int64_t) use a fast path
 class BigInt {
 public:
     static constexpr int64_t BASE = 1000000000LL; // 10^9
@@ -32,6 +35,14 @@ public:
     BigInt operator%(const BigInt& rhs) const;
     BigInt operator-() const;
 
+    // Bitwise
+    BigInt operator&(const BigInt& rhs) const;
+    BigInt operator|(const BigInt& rhs) const;
+    BigInt operator^(const BigInt& rhs) const;
+    BigInt operator~() const;
+    BigInt operator<<(int64_t n) const;
+    BigInt operator>>(int64_t n) const;
+
     // Comparison
     bool operator==(const BigInt& rhs) const;
     bool operator!=(const BigInt& rhs) const;
@@ -52,11 +63,10 @@ public:
     size_t byteCount() const { return small_ ? 8 : digits_.size() * 4; }
 
 private:
-    bool negative_;
-    bool small_;        // true = use smallVal_, false = use digits_
-    int64_t smallVal_;  // used when small_ == true (stores absolute value concept handled by negative_)
-    // Actually for simplicity, smallVal_ stores the signed value directly when small_
-    std::vector<uint32_t> digits_; // base 10^9 digits, least significant first
+    bool negative_;           // sign
+    bool small_;              // if true, uses smallVal_; if false, uses digits_
+    int64_t smallVal_;        // signed integer value when small_ == true
+    std::vector<uint32_t> digits_; // base-10^9 digits, least significant first (big representation)
 
     // Internal helpers
     void normalize();

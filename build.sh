@@ -5,7 +5,7 @@
 
 set -e
 
-CXX="g++"
+CXX="/mingw64/bin/g++"
 CXXFLAGS="-std=c++17 -O2 -Wall -Wextra"
 SRC="cpct-interpreter/src/main.cpp cpct-interpreter/src/lexer.cpp cpct-interpreter/src/parser.cpp cpct-interpreter/src/interpreter.cpp cpct-interpreter/src/bigint.cpp"
 OUT="cpct.exe"

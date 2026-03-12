@@ -1,4 +1,4 @@
-# C% 기본 문법
+# rC% 기본 문법
 
 ## 주석
 
@@ -336,30 +336,30 @@ print(f"len = {len("hello")}");          // len = 5
 
 ## 내장 함수
 
-| 함수 | 설명 | 예시 |
-| --- | --- | --- |
-| `len(x)` | 배열/문자열 길이 | `len("hello")` → `5` |
-| `int(x)` | 정수로 변환 | `int("42")` → `42` |
-| `float(x)` | 실수로 변환 | `float("3.14")` → `3.14` |
-| `string(x)` | 문자열로 변환 | `string(42)` → `"42"` |
-| `bool(x)` | 불리언으로 변환 | `bool(0)` → `false` |
-| `type(x)` | 타입 이름 반환 | `type(42)` → `"int"` |
-| `size(x)` | 바이트 크기 반환 | `size(42)` → `8` |
-| `shape(x)` | 배열 차원 크기 반환 | `shape(m)` → `[3, 4]` |
-| `divmod(a, b)` | 몫과 나머지 배열 반환 | `divmod(7, 3)` → `[2, 1]` |
-| `input()` | 한 줄 입력 | `string s = input();` |
-| `keys(d)` | dict 키 배열 | `keys(scores)` |
-| `values(d)` | dict 값 배열 | `values(scores)` |
-| `has(d, k)` | dict 키 존재 여부 | `has(scores, "alice")` |
-| `remove(d, k)` | dict 키 삭제 | `d.remove("alice")` |
-| `v.push(x)` | vector 끝에 원소 추가 | `v.push(42)` |
-| `v.pop()` | vector 끝 원소 제거 (반환) | `int x = v.pop()` |
-| `v.insert(i, x)` | vector i번째에 삽입 | `v.insert(0, 99)` |
-| `v.erase(i)` | vector i번째 원소 제거 | `v.erase(0)` |
-| `v.clear()` | vector 전체 삭제 | `v.clear()` |
-| `v.empty()` | vector 비었는지 확인 | `v.empty()` → `true` |
-| `v.front()` | vector 첫 번째 원소 | `v.front()` |
-| `v.back()` | vector 마지막 원소 | `v.back()` |
+| 함수               | 설명                       | 예시                           |
+| ------------------ | -------------------------- | ------------------------------ |
+| `len(x)`         | 배열/문자열 길이           | `len("hello")` → `5`      |
+| `int(x)`         | 정수로 변환                | `int("42")` → `42`        |
+| `float(x)`       | 실수로 변환                | `float("3.14")` → `3.14`  |
+| `string(x)`      | 문자열로 변환              | `string(42)` → `"42"`     |
+| `bool(x)`        | 불리언으로 변환            | `bool(0)` → `false`       |
+| `type(x)`        | 타입 이름 반환             | `type(42)` → `"int"`      |
+| `size(x)`        | 바이트 크기 반환           | `size(42)` → `8`          |
+| `shape(x)`       | 배열 차원 크기 반환        | `shape(m)` → `[3, 4]`     |
+| `divmod(a, b)`   | 몫과 나머지 배열 반환      | `divmod(7, 3)` → `[2, 1]` |
+| `input()`        | 한 줄 입력                 | `string s = input();`        |
+| `keys(d)`        | dict 키 배열               | `keys(scores)`               |
+| `values(d)`      | dict 값 배열               | `values(scores)`             |
+| `has(d, k)`      | dict 키 존재 여부          | `has(scores, "alice")`       |
+| `remove(d, k)`   | dict 키 삭제               | `d.remove("alice")`          |
+| `v.push(x)`      | vector 끝에 원소 추가      | `v.push(42)`                 |
+| `v.pop()`        | vector 끝 원소 제거 (반환) | `int x = v.pop()`            |
+| `v.insert(i, x)` | vector i번째에 삽입        | `v.insert(0, 99)`            |
+| `v.erase(i)`     | vector i번째 원소 제거     | `v.erase(0)`                 |
+| `v.clear()`      | vector 전체 삭제           | `v.clear()`                  |
+| `v.is_empty()`   | vector 비었는지 확인       | `v.is_empty()` → `true`   |
+| `v.front()`      | vector 첫 번째 원소        | `v.front()`                  |
+| `v.back()`       | vector 마지막 원소         | `v.back()`                   |
 
 ## 실행 방법
 

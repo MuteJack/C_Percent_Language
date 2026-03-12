@@ -1,3 +1,8 @@
+// lexer.cpp
+// Lexer implementation.
+// tokenize() is the main loop, dispatching to make* functions by character type.
+// Supported literals: integer, float, string(""), raw string(r""), f-string(f""), char('')
+// Operators are disambiguated by peeking 1-2 characters ahead.
 #include "lexer.h"
 #include <stdexcept>
 
@@ -300,19 +305,42 @@ std::vector<Token> Lexer::tokenize() {
                 tokens.push_back(makeToken(TokenType::NOT, "!"));
                 continue;
             case '<':
+                if (peek() == '<') {
+                    if (pos_ + 2 < source_.size() && source_[pos_ + 2] == '=') {
+                        tokens.push_back(makeToken(TokenType::LSHIFT_ASSIGN, "<<=")); continue;
+                    }
+                    tokens.push_back(makeToken(TokenType::LSHIFT, "<<")); continue;
+                }
                 if (peek() == '=') { tokens.push_back(makeToken(TokenType::LTE, "<=")); continue; }
                 tokens.push_back(makeToken(TokenType::LT, "<"));
                 continue;
             case '>':
+                if (peek() == '>') {
+                    if (pos_ + 2 < source_.size() && source_[pos_ + 2] == '=') {
+                        tokens.push_back(makeToken(TokenType::RSHIFT_ASSIGN, ">>=")); continue;
+                    }
+                    tokens.push_back(makeToken(TokenType::RSHIFT, ">>")); continue;
+                }
                 if (peek() == '=') { tokens.push_back(makeToken(TokenType::GTE, ">=")); continue; }
                 tokens.push_back(makeToken(TokenType::GT, ">"));
                 continue;
             case '&':
                 if (peek() == '&') { tokens.push_back(makeToken(TokenType::AND, "&&")); continue; }
-                break;
+                if (peek() == '=') { tokens.push_back(makeToken(TokenType::BIT_AND_ASSIGN, "&=")); continue; }
+                tokens.push_back(makeToken(TokenType::BIT_AND, "&"));
+                continue;
             case '|':
                 if (peek() == '|') { tokens.push_back(makeToken(TokenType::OR, "||")); continue; }
-                break;
+                if (peek() == '=') { tokens.push_back(makeToken(TokenType::BIT_OR_ASSIGN, "|=")); continue; }
+                tokens.push_back(makeToken(TokenType::BIT_OR, "|"));
+                continue;
+            case '^':
+                if (peek() == '=') { tokens.push_back(makeToken(TokenType::BIT_XOR_ASSIGN, "^=")); continue; }
+                tokens.push_back(makeToken(TokenType::BIT_XOR, "^"));
+                continue;
+            case '~':
+                tokens.push_back(makeToken(TokenType::BIT_NOT, "~"));
+                continue;
             case '(':
                 tokens.push_back(makeToken(TokenType::LPAREN, "("));
                 continue;

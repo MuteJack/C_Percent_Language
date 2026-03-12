@@ -1,3 +1,5 @@
+// C% interpreter entry point
+// Supports both file execution mode and interactive REPL mode.
 #include "lexer.h"
 #include "parser.h"
 #include "interpreter.h"
@@ -5,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 
+// Reads a .cpc source file and returns it as a string.
 static std::string readFile(const std::string& path) {
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -16,6 +19,7 @@ static std::string readFile(const std::string& path) {
     return ss.str();
 }
 
+// Runs the source string through the lexer → parser → interpreter pipeline.
 static void runSource(const std::string& source, Interpreter& interp) {
     try {
         Lexer lexer(source);
@@ -30,6 +34,7 @@ static void runSource(const std::string& source, Interpreter& interp) {
     }
 }
 
+// Interactive REPL — tracks brace depth to accept multi-line input until blocks are closed.
 static void repl() {
     std::cout << "C% Interpreter v0.1.0" << std::endl;
     std::cout << "Type 'exit' to quit." << std::endl;
@@ -67,6 +72,7 @@ static void repl() {
     std::cout << "Bye!" << std::endl;
 }
 
+// Runs in REPL mode with no arguments, or file execution mode when a file path is given.
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         // REPL mode

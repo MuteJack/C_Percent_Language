@@ -28,12 +28,12 @@ println("erase(1):", v);
 // Front / Back / Empty
 println("front:", v.front());
 println("back:", v.back());
-println("empty:", v.empty());
+println("empty:", v.is_empty());
 
 // Clear
 v.clear();
 println("after clear:", v);
-println("empty:", v.empty());
+println("empty:", v.is_empty());
 
 // Type coercion
 vector<int> vi = [1, 2, 3];

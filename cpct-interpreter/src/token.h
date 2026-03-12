@@ -1,7 +1,12 @@
+// token.h
+// Defines token types (TokenType) and the Token struct produced by the lexer.
+// getKeywords(): reserved word string → TokenType mapping table
+// tokenTypeToString(): TokenType → string conversion for debugging
 #pragma once
 #include <string>
 #include <unordered_map>
 
+// Token categories: literals, identifiers, type keywords, control keywords, operators, delimiters, special tokens
 enum class TokenType {
     // Literals
     INT_LIT, FLOAT_LIT, STRING_LIT, CHAR_LIT, BOOL_LIT, FSTRING_LIT,
@@ -25,7 +30,9 @@ enum class TokenType {
     PLUS, MINUS, STAR, SLASH, PERCENT, POWER, DIVMOD,
     ASSIGN, EQ, NEQ, LT, GT, LTE, GTE,
     AND, OR, NOT,
+    BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, LSHIFT, RSHIFT,
     PLUS_ASSIGN, MINUS_ASSIGN, STAR_ASSIGN, SLASH_ASSIGN, PERCENT_ASSIGN,
+    BIT_AND_ASSIGN, BIT_OR_ASSIGN, BIT_XOR_ASSIGN, LSHIFT_ASSIGN, RSHIFT_ASSIGN,
     INCREMENT, DECREMENT,
     QUESTION,
 
@@ -37,6 +44,7 @@ enum class TokenType {
     EOF_TOKEN, ERROR
 };
 
+// Represents a single token: type, raw string value, source location (line, column)
 struct Token {
     TokenType type;
     std::string value;
@@ -48,6 +56,7 @@ struct Token {
         : type(type), value(std::move(value)), line(line), col(col) {}
 };
 
+// Reserved word → TokenType mapping (created once via static local variable)
 inline const std::unordered_map<std::string, TokenType>& getKeywords() {
     static const std::unordered_map<std::string, TokenType> keywords = {
         {"int",      TokenType::KW_INT},
@@ -92,6 +101,7 @@ inline const std::unordered_map<std::string, TokenType>& getKeywords() {
     return keywords;
 }
 
+// Converts TokenType to a human-readable string for debugging/error messages
 inline std::string tokenTypeToString(TokenType type) {
     switch (type) {
         case TokenType::INT_LIT: return "INT_LIT";
@@ -156,11 +166,22 @@ inline std::string tokenTypeToString(TokenType type) {
         case TokenType::AND: return "&&";
         case TokenType::OR: return "||";
         case TokenType::NOT: return "!";
+        case TokenType::BIT_AND: return "&";
+        case TokenType::BIT_OR: return "|";
+        case TokenType::BIT_XOR: return "^";
+        case TokenType::BIT_NOT: return "~";
+        case TokenType::LSHIFT: return "<<";
+        case TokenType::RSHIFT: return ">>";
         case TokenType::PLUS_ASSIGN: return "+=";
         case TokenType::MINUS_ASSIGN: return "-=";
         case TokenType::STAR_ASSIGN: return "*=";
         case TokenType::SLASH_ASSIGN: return "/=";
         case TokenType::PERCENT_ASSIGN: return "%=";
+        case TokenType::BIT_AND_ASSIGN: return "&=";
+        case TokenType::BIT_OR_ASSIGN: return "|=";
+        case TokenType::BIT_XOR_ASSIGN: return "^=";
+        case TokenType::LSHIFT_ASSIGN: return "<<=";
+        case TokenType::RSHIFT_ASSIGN: return ">>=";
         case TokenType::QUESTION: return "?";
         case TokenType::INCREMENT: return "++";
         case TokenType::DECREMENT: return "--";

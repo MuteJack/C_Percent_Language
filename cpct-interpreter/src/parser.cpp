@@ -1,3 +1,10 @@
+// parser.cpp
+// Recursive descent parser implementation.
+// parseStatement(): dispatches to variable decl / control statement / expression statement by token type
+// parseForStmt(): distinguishes 4 for variants by semicolon/colon presence
+// parseComparison(): creates ChainedComparison node when comparison operators are chained
+// parsePostfix(): desugars expr.method(args) → method(expr, args) method calls
+// parseFStringExpr(): parses {expr} inside f"..." via sub-lexer + sub-parser
 #include "parser.h"
 #include "lexer.h"
 
@@ -614,7 +621,10 @@ ExprPtr Parser::parseAssignment() {
         }
         if (check(TokenType::PLUS_ASSIGN) || check(TokenType::MINUS_ASSIGN) ||
             check(TokenType::STAR_ASSIGN) || check(TokenType::SLASH_ASSIGN) ||
-            check(TokenType::PERCENT_ASSIGN)) {
+            check(TokenType::PERCENT_ASSIGN) ||
+            check(TokenType::BIT_AND_ASSIGN) || check(TokenType::BIT_OR_ASSIGN) ||
+            check(TokenType::BIT_XOR_ASSIGN) || check(TokenType::LSHIFT_ASSIGN) ||
+            check(TokenType::RSHIFT_ASSIGN)) {
             TokenType op = advance().type;
             auto value = parseAssignment();
             return makeCompoundAssign(expr->name, op, std::move(value), expr->line);
@@ -631,7 +641,10 @@ ExprPtr Parser::parseAssignment() {
         }
         if (check(TokenType::PLUS_ASSIGN) || check(TokenType::MINUS_ASSIGN) ||
             check(TokenType::STAR_ASSIGN) || check(TokenType::SLASH_ASSIGN) ||
-            check(TokenType::PERCENT_ASSIGN)) {
+            check(TokenType::PERCENT_ASSIGN) ||
+            check(TokenType::BIT_AND_ASSIGN) || check(TokenType::BIT_OR_ASSIGN) ||
+            check(TokenType::BIT_XOR_ASSIGN) || check(TokenType::LSHIFT_ASSIGN) ||
+            check(TokenType::RSHIFT_ASSIGN)) {
             TokenType op = advance().type;
             auto value = parseAssignment();
             return makeArrayCompoundAssign(std::move(expr->arrayExpr), std::move(expr->indexExpr),
@@ -671,12 +684,45 @@ ExprPtr Parser::parseOr() {
 }
 
 ExprPtr Parser::parseAnd() {
-    auto left = parseEquality();
+    auto left = parseBitOr();
     while (check(TokenType::AND)) {
         int line = current().line;
         advance();
-        auto right = parseEquality();
+        auto right = parseBitOr();
         left = makeBinaryOp(TokenType::AND, std::move(left), std::move(right), line);
+    }
+    return left;
+}
+
+ExprPtr Parser::parseBitOr() {
+    auto left = parseBitXor();
+    while (check(TokenType::BIT_OR)) {
+        int line = current().line;
+        advance();
+        auto right = parseBitXor();
+        left = makeBinaryOp(TokenType::BIT_OR, std::move(left), std::move(right), line);
+    }
+    return left;
+}
+
+ExprPtr Parser::parseBitXor() {
+    auto left = parseBitAnd();
+    while (check(TokenType::BIT_XOR)) {
+        int line = current().line;
+        advance();
+        auto right = parseBitAnd();
+        left = makeBinaryOp(TokenType::BIT_XOR, std::move(left), std::move(right), line);
+    }
+    return left;
+}
+
+ExprPtr Parser::parseBitAnd() {
+    auto left = parseEquality();
+    while (check(TokenType::BIT_AND)) {
+        int line = current().line;
+        advance();
+        auto right = parseEquality();
+        left = makeBinaryOp(TokenType::BIT_AND, std::move(left), std::move(right), line);
     }
     return left;
 }
@@ -693,7 +739,7 @@ ExprPtr Parser::parseEquality() {
 }
 
 ExprPtr Parser::parseComparison() {
-    auto first = parseAddition();
+    auto first = parseShift();
     if (!check(TokenType::LT) && !check(TokenType::GT) &&
         !check(TokenType::LTE) && !check(TokenType::GTE)) {
         return first;
@@ -702,7 +748,7 @@ ExprPtr Parser::parseComparison() {
     // At least one comparison operator
     TokenType op1 = advance().type;
     int line = current().line;
-    auto second = parseAddition();
+    auto second = parseShift();
 
     if (!check(TokenType::LT) && !check(TokenType::GT) &&
         !check(TokenType::LTE) && !check(TokenType::GTE)) {
@@ -720,10 +766,21 @@ ExprPtr Parser::parseComparison() {
     while (check(TokenType::LT) || check(TokenType::GT) ||
            check(TokenType::LTE) || check(TokenType::GTE)) {
         ops.push_back(advance().type);
-        operands.push_back(parseAddition());
+        operands.push_back(parseShift());
     }
 
     return makeChainedComparison(std::move(operands), std::move(ops), line);
+}
+
+ExprPtr Parser::parseShift() {
+    auto left = parseAddition();
+    while (check(TokenType::LSHIFT) || check(TokenType::RSHIFT)) {
+        TokenType op = advance().type;
+        int line = current().line;
+        auto right = parseAddition();
+        left = makeBinaryOp(op, std::move(left), std::move(right), line);
+    }
+    return left;
 }
 
 ExprPtr Parser::parseAddition() {
@@ -760,7 +817,7 @@ ExprPtr Parser::parsePower() {
 }
 
 ExprPtr Parser::parseUnary() {
-    if (check(TokenType::MINUS) || check(TokenType::NOT)) {
+    if (check(TokenType::MINUS) || check(TokenType::NOT) || check(TokenType::BIT_NOT)) {
         TokenType op = advance().type;
         int line = current().line;
         auto operand = parseUnary();

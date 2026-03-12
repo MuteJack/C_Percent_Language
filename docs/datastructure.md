@@ -618,7 +618,7 @@ v.clear();               // []
 vector<int> v = [1, 2, 3, 4, 5];
 
 v.len()              // 5 (원소 개수)
-v.empty()            // false (비어있는지)
+v.is_empty()         // false (비어있는지)
 v.front()            // 1 (첫 번째 원소)
 v.back()             // 5 (마지막 원소)
 v.type()             // "vector<int>"
@@ -626,7 +626,7 @@ v.size()             // 바이트 크기
 ```
 
 모든 내장 함수는 자유 함수와 메서드 스타일 모두 지원:
-`len(v)` ↔ `v.len()`, `empty(v)` ↔ `v.empty()`
+`len(v)` ↔ `v.len()`, `is_empty(v)` ↔ `v.is_empty()`
 
 ### 타입 강제
 

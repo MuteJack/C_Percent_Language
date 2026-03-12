@@ -1,3 +1,17 @@
+// interpreter.cpp
+// Tree-walking interpreter implementation — directly traverses the AST to execute the program.
+//
+// Main sections:
+//   CpctDict        — dictionary/map lookup, insert, delete (swap-remove technique)
+//   TypedArray       — type-specialized array element get/set
+//   Sort helpers     — array/dictionary sort helpers
+//   CpctValue        — toNumber/toBool/toString conversions
+//   Environment      — scope chain variable management
+//   Interpreter      — statement execution (exec*) and expression evaluation (eval*)
+//   evalBinaryOp     — fast path: int64 → uint64 → mixed → BigInt → float
+//   evalFunctionCall — built-in functions (push/pop/sort/type/size, etc.) + type casts + user functions
+//   checkIntRange    — C-style integer wrapping (modular wrap-around on overflow)
+//   coerce*          — type coercion helpers
 #include "interpreter.h"
 #include <iostream>
 #include <iomanip>
@@ -7,7 +21,7 @@
 #include <algorithm>
 #include <numeric>
 
-// ============== CpctDict ==============
+// ============== CpctDict (dictionary/map operations) ==============
 
 // Tagged hash for untyped dict — type prefix prevents "1" (string) vs 1 (int) collision
 std::string CpctDict::taggedHash(const CpctValue& key) {
@@ -130,7 +144,7 @@ void CpctDict::rebuildIndex() {
     }
 }
 
-// ============== TypedArray ==============
+// ============== TypedArray (type-specialized array element access) ==============
 
 CpctValue TypedArray::get(size_t i) const {
     switch (elemType) {
@@ -215,7 +229,7 @@ static void applyDictPermutation(CpctDict& dict, std::vector<size_t>& perm) {
     dict.rebuildIndex();
 }
 
-// ============== CpctValue ==============
+// ============== CpctValue (runtime value conversion methods) ==============
 
 double CpctValue::toNumber() const {
     if (isInt()) return static_cast<double>(asInt());
@@ -317,7 +331,7 @@ std::string CpctValue::toString() const {
     return "<unknown>";
 }
 
-// ============== Environment ==============
+// ============== Environment (scope chain implementation) ==============
 
 Environment::Environment(Environment* parent) : parent_(parent) {}
 
@@ -361,7 +375,7 @@ std::string Environment::getType(const std::string& name) const {
     return "";
 }
 
-// ============== Interpreter ==============
+// ============== Interpreter (statement execution engine) ==============
 
 Interpreter::Interpreter() : currentEnv_(&globalEnv_) {}
 
@@ -391,8 +405,10 @@ void Interpreter::execStmt(const Stmt* stmt) {
     }
 }
 
+// Variable declaration execution: dict / map / vector / array (1D→TypedArray, multi-dim) / scalar
+// Coerces initialization values based on type and performs range checking (checkIntRange).
 void Interpreter::execVarDecl(const Stmt* stmt) {
-    // Dict declaration (untyped — any key/value)
+    // dict declaration (untyped — any key/value allowed)
     if (isDictType(stmt->varType)) {
         CpctDict dict;
         // keyType/valueType left empty → no coercion
@@ -1102,6 +1118,9 @@ CpctValue Interpreter::eval(const Expr* expr) {
     throw RuntimeError("Unknown expression kind");
 }
 
+// Binary operator evaluation.
+// Fast path order: int64×int64 → uint64×uint64 → mixed signed/unsigned → BigInt → float
+// Overflow is detected via __builtin_*_overflow and auto-promotes to BigInt.
 CpctValue Interpreter::evalBinaryOp(const Expr* expr) {
     CpctValue left = eval(expr->left.get());
     CpctValue right = eval(expr->right.get());
@@ -1179,6 +1198,11 @@ CpctValue Interpreter::evalBinaryOp(const Expr* expr) {
                 case TokenType::GT:  return CpctValue(l > r);
                 case TokenType::LTE: return CpctValue(l <= r);
                 case TokenType::GTE: return CpctValue(l >= r);
+                case TokenType::BIT_AND: return CpctValue(l & r);
+                case TokenType::BIT_OR:  return CpctValue(l | r);
+                case TokenType::BIT_XOR: return CpctValue(l ^ r);
+                case TokenType::LSHIFT:  return CpctValue(l << r);
+                case TokenType::RSHIFT:  return CpctValue(l >> r);
                 default: break;
             }
         }
@@ -1222,6 +1246,11 @@ CpctValue Interpreter::evalBinaryOp(const Expr* expr) {
                 case TokenType::GT:  return CpctValue(l > r);
                 case TokenType::LTE: return CpctValue(l <= r);
                 case TokenType::GTE: return CpctValue(l >= r);
+                case TokenType::BIT_AND: return CpctValue(static_cast<uint64_t>(l & r));
+                case TokenType::BIT_OR:  return CpctValue(static_cast<uint64_t>(l | r));
+                case TokenType::BIT_XOR: return CpctValue(static_cast<uint64_t>(l ^ r));
+                case TokenType::LSHIFT:  return CpctValue(static_cast<uint64_t>(l << r));
+                case TokenType::RSHIFT:  return CpctValue(static_cast<uint64_t>(l >> r));
                 default: break;
             }
         }
@@ -1240,7 +1269,33 @@ CpctValue Interpreter::evalBinaryOp(const Expr* expr) {
                 case TokenType::GTE:
                     if (left.isInt()) return CpctValue(safeCmpLessEqual(right.asUInt(), left.asInt()));
                     return CpctValue(safeCmpLessEqual(right.asInt(), left.asUInt()));
+                // Bitwise ops on mixed signed/unsigned — cast both to int64
+                case TokenType::BIT_AND: return CpctValue(left.toInt64() & right.toInt64());
+                case TokenType::BIT_OR:  return CpctValue(left.toInt64() | right.toInt64());
+                case TokenType::BIT_XOR: return CpctValue(left.toInt64() ^ right.toInt64());
+                case TokenType::LSHIFT:  return CpctValue(left.toInt64() << right.toInt64());
+                case TokenType::RSHIFT:  return CpctValue(left.toInt64() >> right.toInt64());
                 default: break; // arithmetic falls through to BigInt
+            }
+        }
+        // Bitwise ops on BigInt — use BigInt operators
+        if (expr->op == TokenType::BIT_AND || expr->op == TokenType::BIT_OR ||
+            expr->op == TokenType::BIT_XOR || expr->op == TokenType::LSHIFT ||
+            expr->op == TokenType::RSHIFT) {
+            BigInt l = left.toBigInt(), r = right.toBigInt();
+            switch (expr->op) {
+                case TokenType::BIT_AND: return CpctValue(l & r);
+                case TokenType::BIT_OR:  return CpctValue(l | r);
+                case TokenType::BIT_XOR: return CpctValue(l ^ r);
+                case TokenType::LSHIFT: {
+                    if (!r.fitsInt64()) throw RuntimeError("Shift amount too large at line " + std::to_string(expr->line));
+                    return CpctValue(l << r.toInt64());
+                }
+                case TokenType::RSHIFT: {
+                    if (!r.fitsInt64()) throw RuntimeError("Shift amount too large at line " + std::to_string(expr->line));
+                    return CpctValue(l >> r.toInt64());
+                }
+                default: break;
             }
         }
         // At least one is BigInt or mixed signed/unsigned arithmetic — use BigInt
@@ -1322,6 +1377,11 @@ CpctValue Interpreter::evalUnaryOp(const Expr* expr) {
             return CpctValue(-val.toNumber());
         case TokenType::NOT:
             return CpctValue(!val.toBool());
+        case TokenType::BIT_NOT:
+            if (val.isInt()) return CpctValue(~val.asInt());
+            if (val.isUInt()) return CpctValue(~val.asUInt());
+            if (val.isBigInt()) return CpctValue(~val.asBigInt());
+            throw RuntimeError("Bitwise NOT requires integer operand at line " + std::to_string(expr->line));
         default:
             throw RuntimeError("Unknown unary operator");
     }
@@ -1366,6 +1426,11 @@ CpctValue Interpreter::evalCompoundAssign(const Expr* expr) {
                 case TokenType::PERCENT_ASSIGN:
                     if (r == 0) throw RuntimeError("Division by zero");
                     result = CpctValue(l % r); break;
+                case TokenType::BIT_AND_ASSIGN: result = CpctValue(l & r); break;
+                case TokenType::BIT_OR_ASSIGN:  result = CpctValue(l | r); break;
+                case TokenType::BIT_XOR_ASSIGN: result = CpctValue(l ^ r); break;
+                case TokenType::LSHIFT_ASSIGN:  result = CpctValue(l << r); break;
+                case TokenType::RSHIFT_ASSIGN:  result = CpctValue(l >> r); break;
                 default: throw RuntimeError("Unknown compound operator");
             }
         } else if (cur.isUInt() && right.isUInt()) {
@@ -1391,6 +1456,11 @@ CpctValue Interpreter::evalCompoundAssign(const Expr* expr) {
                 case TokenType::PERCENT_ASSIGN:
                     if (r == 0) throw RuntimeError("Division by zero");
                     result = CpctValue(static_cast<uint64_t>(l % r)); break;
+                case TokenType::BIT_AND_ASSIGN: result = CpctValue(static_cast<uint64_t>(l & r)); break;
+                case TokenType::BIT_OR_ASSIGN:  result = CpctValue(static_cast<uint64_t>(l | r)); break;
+                case TokenType::BIT_XOR_ASSIGN: result = CpctValue(static_cast<uint64_t>(l ^ r)); break;
+                case TokenType::LSHIFT_ASSIGN:  result = CpctValue(static_cast<uint64_t>(l << r)); break;
+                case TokenType::RSHIFT_ASSIGN:  result = CpctValue(static_cast<uint64_t>(l >> r)); break;
                 default: throw RuntimeError("Unknown compound operator");
             }
         } else {
@@ -1406,6 +1476,17 @@ CpctValue Interpreter::evalCompoundAssign(const Expr* expr) {
                 case TokenType::PERCENT_ASSIGN:
                     if (r.isZero()) throw RuntimeError("Division by zero");
                     result = CpctValue(l % r); break;
+                case TokenType::BIT_AND_ASSIGN: result = CpctValue(l & r); break;
+                case TokenType::BIT_OR_ASSIGN:  result = CpctValue(l | r); break;
+                case TokenType::BIT_XOR_ASSIGN: result = CpctValue(l ^ r); break;
+                case TokenType::LSHIFT_ASSIGN: {
+                    if (!r.fitsInt64()) throw RuntimeError("Shift amount too large");
+                    result = CpctValue(l << r.toInt64()); break;
+                }
+                case TokenType::RSHIFT_ASSIGN: {
+                    if (!r.fitsInt64()) throw RuntimeError("Shift amount too large");
+                    result = CpctValue(l >> r.toInt64()); break;
+                }
                 default: throw RuntimeError("Unknown compound operator");
             }
         }
@@ -1436,8 +1517,9 @@ CpctValue Interpreter::evalCompoundAssign(const Expr* expr) {
     return result;
 }
 
+// Function call evaluation: type methods (int.max(), etc.) → built-in functions (push/pop/sort, etc.) → type casts → user functions
 CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
-    // Type method: int.max(), float32.min(), etc.
+    // Type methods: int.max(), float32.min(), etc.
     if (expr->funcName == "__type_method") {
         std::string typeName = expr->args[0]->strVal;
         std::string method = expr->args[1]->strVal;
@@ -1586,14 +1668,14 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
         return CpctValue(true);
     }
 
-    // empty() — check if vector/array is empty
-    if (expr->funcName == "empty") {
+    // is_empty() — check if vector/array is empty
+    if (expr->funcName == "is_empty") {
         if (expr->args.size() != 1)
-            throw RuntimeError("empty() takes exactly 1 argument");
+            throw RuntimeError("is_empty() takes exactly 1 argument");
         CpctValue val = eval(expr->args[0].get());
         if (val.isArray()) return CpctValue(val.asArray().empty());
         if (val.isTypedArray()) return CpctValue(val.asTypedArray().size() == 0);
-        throw RuntimeError("empty() requires a vector or array argument");
+        throw RuntimeError("is_empty() requires a vector or array argument");
     }
 
     // front() — return first element
@@ -2178,6 +2260,11 @@ CpctValue Interpreter::evalArrayCompoundAssign(const Expr* expr) {
                 case TokenType::PERCENT_ASSIGN:
                     if (r == 0) throw RuntimeError("Division by zero");
                     result = CpctValue(l % r); break;
+                case TokenType::BIT_AND_ASSIGN: result = CpctValue(l & r); break;
+                case TokenType::BIT_OR_ASSIGN:  result = CpctValue(l | r); break;
+                case TokenType::BIT_XOR_ASSIGN: result = CpctValue(l ^ r); break;
+                case TokenType::LSHIFT_ASSIGN:  result = CpctValue(l << r); break;
+                case TokenType::RSHIFT_ASSIGN:  result = CpctValue(l >> r); break;
                 default: throw RuntimeError("Unknown compound operator");
             }
         } else if (elem.isUInt() && right.isUInt()) {
@@ -2202,6 +2289,11 @@ CpctValue Interpreter::evalArrayCompoundAssign(const Expr* expr) {
                 case TokenType::PERCENT_ASSIGN:
                     if (r == 0) throw RuntimeError("Division by zero");
                     result = CpctValue(static_cast<uint64_t>(l % r)); break;
+                case TokenType::BIT_AND_ASSIGN: result = CpctValue(static_cast<uint64_t>(l & r)); break;
+                case TokenType::BIT_OR_ASSIGN:  result = CpctValue(static_cast<uint64_t>(l | r)); break;
+                case TokenType::BIT_XOR_ASSIGN: result = CpctValue(static_cast<uint64_t>(l ^ r)); break;
+                case TokenType::LSHIFT_ASSIGN:  result = CpctValue(static_cast<uint64_t>(l << r)); break;
+                case TokenType::RSHIFT_ASSIGN:  result = CpctValue(static_cast<uint64_t>(l >> r)); break;
                 default: throw RuntimeError("Unknown compound operator");
             }
         } else {
@@ -2216,6 +2308,17 @@ CpctValue Interpreter::evalArrayCompoundAssign(const Expr* expr) {
                 case TokenType::PERCENT_ASSIGN:
                     if (r.isZero()) throw RuntimeError("Division by zero");
                     result = CpctValue(l % r); break;
+                case TokenType::BIT_AND_ASSIGN: result = CpctValue(l & r); break;
+                case TokenType::BIT_OR_ASSIGN:  result = CpctValue(l | r); break;
+                case TokenType::BIT_XOR_ASSIGN: result = CpctValue(l ^ r); break;
+                case TokenType::LSHIFT_ASSIGN: {
+                    if (!r.fitsInt64()) throw RuntimeError("Shift amount too large");
+                    result = CpctValue(l << r.toInt64()); break;
+                }
+                case TokenType::RSHIFT_ASSIGN: {
+                    if (!r.fitsInt64()) throw RuntimeError("Shift amount too large");
+                    result = CpctValue(l >> r.toInt64()); break;
+                }
                 default: throw RuntimeError("Unknown compound operator");
             }
         }
@@ -2289,6 +2392,9 @@ CpctValue Interpreter::evalArraySlice(const Expr* expr) {
     return CpctValue(std::move(result));
 }
 
+// Built-in functions (len, shape, keys, values, has, divmod, type casts) and user-defined function calls.
+// User function calls create a new Environment on top of the global scope,
+// and receive the return value via ReturnSignal exception.
 CpctValue Interpreter::callFunction(const std::string& name, const std::vector<CpctValue>& args, int line) {
     // Built-in functions
     if (name == "len") {
@@ -2466,8 +2572,10 @@ CpctValue Interpreter::callFunction(const std::string& name, const std::vector<C
     return result;
 }
 
+// Checks the range of fixed-size integer types and applies C-style modular wrap-around on overflow.
+// uint64 uses a separate uint64_t storage path; intbig/bigint pass through without range limits.
 CpctValue Interpreter::checkIntRange(const std::string& typeName, CpctValue val, int line) {
-    // 'intbig'/'bigint' types are dynamic (BigInt), no range check needed
+    // intbig/bigint are dynamic BigInt types, no range checking needed
     if (isDynamicIntType(typeName)) return val;
 
     auto& info = getIntTypeInfo(typeName);

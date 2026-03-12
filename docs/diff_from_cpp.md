@@ -52,6 +52,6 @@ C%는 C/C++ 문법을 기반으로 하되, 일부 동작이 다르다. C/C++ 경
 - `bigint`: 항상 임의 정밀도 정수
 - `for(n) { ... }`: n번 반복 (카운터 변수 불필요)
 - `for(0 <= i < 10) { ... }`: 연쇄 비교 기반 범위 반복
-- `vector<T>`: C++ `std::vector`와 유사한 동적 배열 (메서드: `push`, `pop`, `insert`, `erase`, `clear`, `empty`, `front`, `back`)
+- `vector<T>`: C++ `std::vector`와 유사한 동적 배열 (메서드: `push`, `pop`, `insert`, `erase`, `clear`, `is_empty`, `front`, `back`)
 - `dict`: 키-값 쌍 (타입 자유)
 - `map<K, V>`: 타입이 고정된 키-값 쌍

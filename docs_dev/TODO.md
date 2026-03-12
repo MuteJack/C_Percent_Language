@@ -18,13 +18,6 @@
 
 ## 우선순위: 높음
 
-### 제어문
-
-| 기능        | C++           | Python            | C%             | 상태     |
-| ----------- | ------------- | ----------------- | -------------- | -------- |
-| switch/case | `switch`    | `match` (3.10+) | `switch`     | 구현완료 |
-| 삼항 연산자 | `a ? b : c` | `b if a else c` | `a ? b : c` | 구현완료 |
-
 ### 연산자
 
 | 기능      | C++                  | Python | C%             | 상태   |
@@ -70,11 +63,10 @@
 
 ### 자료구조
 
-| 기능   | C++                | Python               | C%             | 상태     |
-| ------ | ------------------ | -------------------- | -------------- | -------- |
-| vector | `std::vector`    | `list` (동적 배열) | `vector<T>`  | 구현완료 |
-| 행렬   | (없음, 라이브러리) | `numpy.ndarray`    | **없음** | 미구현   |
-| 테이블 | (없음, 라이브러리) | `pandas.DataFrame` | **없음** | 미구현   |
+| 기능   | C++                | Python               | C%             | 상태   |
+| ------ | ------------------ | -------------------- | -------------- | ------ |
+| 행렬   | (없음, 라이브러리) | `numpy.ndarray`    | **없음** | 미구현 |
+| 테이블 | (없음, 라이브러리) | `pandas.DataFrame` | **없음** | 미구현 |
 
 - **행렬**: 수학 연산 특화 2D 자료구조 (행렬곱, 전치 등)
 - **테이블**: 열 기반 데이터 구조 (CSV/DB 스타일, 열 이름으로 접근)
@@ -88,7 +80,7 @@
 | insert      | `vec.insert()`    | `list.insert()`    | `v.insert(i, x)`         | 구현완료 |
 | erase       | `vec.erase()`     | `del list[i]`      | `v.erase(i)`             | 구현완료 |
 | clear       | `vec.clear()`     | `list.clear()`     | `v.clear()`              | 구현완료 |
-| empty       | `vec.empty()`     | `not list`         | `v.empty()`              | 구현완료 |
+| is_empty    | `vec.empty()`     | `not list`         | `v.is_empty()`           | 구현완료 |
 | front/back  | `vec.front()`     | `list[0]`/`[-1]` | `v.front()`/`v.back()` | 구현완료 |
 | reverse     | `std::reverse()`  | `list.reverse()`   | **없음**             | 미구현   |
 | find/index  | `std::find()`     | `list.index()`     | **없음**             | 미구현   |

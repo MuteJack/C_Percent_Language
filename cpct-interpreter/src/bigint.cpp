@@ -1,3 +1,9 @@
+// bigint.cpp
+// BigInt arbitrary-precision integer implementation.
+// Components: construction (int64/uint64/string), normalization (normalize), magnitude comparison (compareMagnitude),
+//             arithmetic (+, -, *, / schoolbook long division, %), comparison operators.
+// When small_ flag is true, uses fast int64_t arithmetic.
+// Overflow is detected via __builtin_*_overflow and triggers promotion to big representation.
 #include "bigint.h"
 #include <sstream>
 #include <cassert>
@@ -448,3 +454,187 @@ bool BigInt::operator<(const BigInt& rhs) const {
 bool BigInt::operator>(const BigInt& rhs) const { return rhs < *this; }
 bool BigInt::operator<=(const BigInt& rhs) const { return !(rhs < *this); }
 bool BigInt::operator>=(const BigInt& rhs) const { return !(*this < rhs); }
+
+// ============== Bitwise operations ==============
+
+// Helper: convert BigInt magnitude to binary chunks (base 2^32, little-endian)
+static std::vector<uint32_t> toBinaryChunks(BigInt val) {
+    if (val.isNegative()) val = -val;
+    if (val.isZero()) return {0};
+
+    BigInt base(uint64_t(0x100000000ULL)); // 2^32
+    std::vector<uint32_t> chunks;
+    while (!val.isZero()) {
+        BigInt rem = val % base;
+        chunks.push_back(static_cast<uint32_t>(rem.toInt64()));
+        val = val / base;
+    }
+    return chunks;
+}
+
+// Helper: convert magnitude to two's complement binary representation
+static std::vector<uint32_t> toTwosComp(const BigInt& val) {
+    if (val.isZero()) return {0};
+
+    auto chunks = toBinaryChunks(val);
+
+    if (!val.isNegative()) {
+        // Positive: ensure sign bit is 0
+        if (chunks.back() & 0x80000000u)
+            chunks.push_back(0);
+    } else {
+        // Negative: flip bits and add 1
+        for (auto& c : chunks) c = ~c;
+        uint64_t carry = 1;
+        for (auto& c : chunks) {
+            uint64_t sum = static_cast<uint64_t>(c) + carry;
+            c = static_cast<uint32_t>(sum);
+            carry = sum >> 32;
+        }
+        // Ensure sign bit is 1
+        if (!(chunks.back() & 0x80000000u))
+            chunks.push_back(0xFFFFFFFFu);
+    }
+    return chunks;
+}
+
+// Helper: convert two's complement chunks back to BigInt
+static BigInt fromTwosComp(const std::vector<uint32_t>& chunks) {
+    if (chunks.empty()) return BigInt(int64_t(0));
+
+    bool negative = (chunks.back() & 0x80000000u) != 0;
+    std::vector<uint32_t> mag = chunks;
+
+    if (negative) {
+        // Two's complement → magnitude: flip bits, add 1
+        for (auto& c : mag) c = ~c;
+        uint64_t carry = 1;
+        for (auto& c : mag) {
+            uint64_t sum = static_cast<uint64_t>(c) + carry;
+            c = static_cast<uint32_t>(sum);
+            carry = sum >> 32;
+        }
+    }
+
+    // Remove trailing zeros
+    while (mag.size() > 1 && mag.back() == 0) mag.pop_back();
+
+    // Convert binary chunks (base 2^32) to BigInt
+    BigInt result(int64_t(0));
+    BigInt base(uint64_t(0x100000000ULL));
+    BigInt multiplier(int64_t(1));
+
+    for (size_t i = 0; i < mag.size(); i++) {
+        result = result + BigInt(uint64_t(mag[i])) * multiplier;
+        if (i + 1 < mag.size()) multiplier = multiplier * base;
+    }
+
+    if (negative) result = -result;
+    return result;
+}
+
+// Bitwise AND
+BigInt BigInt::operator&(const BigInt& rhs) const {
+    // Fast path: both small
+    if (small_ && rhs.small_)
+        return BigInt(smallVal_ & rhs.smallVal_);
+
+    auto a = toTwosComp(*this);
+    auto b = toTwosComp(rhs);
+
+    // Sign-extend to same length
+    uint32_t aExt = (a.back() & 0x80000000u) ? 0xFFFFFFFFu : 0;
+    uint32_t bExt = (b.back() & 0x80000000u) ? 0xFFFFFFFFu : 0;
+    while (a.size() < b.size()) a.push_back(aExt);
+    while (b.size() < a.size()) b.push_back(bExt);
+
+    std::vector<uint32_t> result(a.size());
+    for (size_t i = 0; i < a.size(); i++)
+        result[i] = a[i] & b[i];
+
+    return fromTwosComp(result);
+}
+
+// Bitwise OR
+BigInt BigInt::operator|(const BigInt& rhs) const {
+    if (small_ && rhs.small_)
+        return BigInt(smallVal_ | rhs.smallVal_);
+
+    auto a = toTwosComp(*this);
+    auto b = toTwosComp(rhs);
+
+    uint32_t aExt = (a.back() & 0x80000000u) ? 0xFFFFFFFFu : 0;
+    uint32_t bExt = (b.back() & 0x80000000u) ? 0xFFFFFFFFu : 0;
+    while (a.size() < b.size()) a.push_back(aExt);
+    while (b.size() < a.size()) b.push_back(bExt);
+
+    std::vector<uint32_t> result(a.size());
+    for (size_t i = 0; i < a.size(); i++)
+        result[i] = a[i] | b[i];
+
+    return fromTwosComp(result);
+}
+
+// Bitwise XOR
+BigInt BigInt::operator^(const BigInt& rhs) const {
+    if (small_ && rhs.small_)
+        return BigInt(smallVal_ ^ rhs.smallVal_);
+
+    auto a = toTwosComp(*this);
+    auto b = toTwosComp(rhs);
+
+    uint32_t aExt = (a.back() & 0x80000000u) ? 0xFFFFFFFFu : 0;
+    uint32_t bExt = (b.back() & 0x80000000u) ? 0xFFFFFFFFu : 0;
+    while (a.size() < b.size()) a.push_back(aExt);
+    while (b.size() < a.size()) b.push_back(bExt);
+
+    std::vector<uint32_t> result(a.size());
+    for (size_t i = 0; i < a.size(); i++)
+        result[i] = a[i] ^ b[i];
+
+    return fromTwosComp(result);
+}
+
+// Bitwise NOT: ~x = -(x + 1)
+BigInt BigInt::operator~() const {
+    return -(*this + BigInt(int64_t(1)));
+}
+
+// Left shift: x << n = x * 2^n
+BigInt BigInt::operator<<(int64_t n) const {
+    if (n == 0 || isZero()) return *this;
+    if (n < 0) return *this >> (-n);
+
+    // Build 2^n by repeated squaring
+    BigInt power(int64_t(1));
+    BigInt base(int64_t(2));
+    int64_t exp = n;
+    while (exp > 0) {
+        if (exp & 1) power = power * base;
+        base = base * base;
+        exp >>= 1;
+    }
+    return *this * power;
+}
+
+// Right shift: x >> n = floor(x / 2^n)
+BigInt BigInt::operator>>(int64_t n) const {
+    if (n == 0 || isZero()) return *this;
+    if (n < 0) return *this << (-n);
+
+    // Build 2^n
+    BigInt power(int64_t(1));
+    BigInt base(int64_t(2));
+    int64_t exp = n;
+    while (exp > 0) {
+        if (exp & 1) power = power * base;
+        base = base * base;
+        exp >>= 1;
+    }
+
+    BigInt result = *this / power;
+    // Floor division: if negative and remainder != 0, subtract 1
+    if (negative_ && !(*this % power).isZero())
+        result = result - BigInt(int64_t(1));
+    return result;
+}
