@@ -46,6 +46,28 @@ C%는 C/C++ 문법을 기반으로 하되, 일부 동작이 다르다. C/C++ 경
 | F-string | 없음 (`std::format` C++20) | `f"Hello, {name}!"` |
 | Raw string | `R"(...)"`  | `r"..."` |
 
+## 문자열 메서드
+
+C/C++에서는 `<string>`, `<algorithm>`, `<cctype>` 등에 분산되어 있는 기능을 C%에서는 내장 함수로 제공한다.
+모든 문자열 함수는 `func(s, ...)` 또는 `s.func(...)` 두 가지 호출 방식을 지원한다.
+
+| 기능 | C/C++ | C% |
+| --- | --- | --- |
+| 문자열 분할 | 직접 구현 (getline 등) | `split(s, sep)` |
+| 배열→문자열 결합 | 직접 구현 | `join(sep, arr)` |
+| 대소문자 변환 | `toupper`/`tolower` (문자 단위) | `upper(s)` / `lower(s)` (문자열 단위) |
+| 부분문자열 검색 | `str.find()` | `find(s, sub)` (없으면 -1) |
+| 문자열 치환 | 직접 구현 | `replace(s, old, new)` (전체 치환) |
+| 공백 제거 | 직접 구현 (C++20에도 없음) | `trim(s)` |
+| 부분문자열 추출 | `str.substr()` | `substr(s, start, len)` |
+| 문자열 뒤집기 | `std::reverse()` (in-place) | `reverse(s)` (새 문자열 반환) |
+| 포함 여부 | `str.find() != npos` | `is_contains(s, sub)` |
+| 접두사/접미사 | C++20 `starts_with`/`ends_with` | `is_starts_with(s, p)` / `is_ends_with(s, p)` |
+| 문자 판별 | `isdigit()`, `isalpha()` (문자 단위) | `is_digit(s)`, `is_alpha(s)` (문자열 단위) |
+| 대소문자 판별 | `isupper()`, `islower()` (문자 단위) | `is_upper(s)`, `is_lower(s)` (문자열 단위) |
+
+**`is_` 접두사 규칙**: bool을 반환하는 판별 함수는 모두 `is_` 접두사를 사용한다 (`is_empty`, `is_contains`, `is_digit` 등).
+
 ## 추가 기능 (C/C++에 없는 것)
 
 - `intbig`: int64 범위에서는 고속, 오버플로 시 자동 BigInt 승격

@@ -1,0 +1,52 @@
+// String Methods Test
+
+// split / join
+vector<string> words = split("hello world foo", " ");
+println(words);
+println(join("-", words));
+
+// upper / lower
+println(upper("hello"));
+println(lower("WORLD"));
+
+// find
+println(find("abcdef", "cd"));
+println(find("abcdef", "xyz"));
+
+// replace
+println(replace("hello world", "world", "C%"));
+
+// trim
+println(trim("  hello  "));
+
+// substr
+println(substr("abcdef", 1, 3));
+
+// reverse
+println(reverse("hello"));
+
+// is_contains
+println(is_contains("hello world", "world"));
+println(is_contains("hello world", "xyz"));
+
+// is_starts_with / is_ends_with
+println(is_starts_with("hello world", "hello"));
+println(is_ends_with("hello world", "world"));
+println(is_starts_with("hello world", "world"));
+println(is_ends_with("hello world", "hello"));
+
+// is_digit / is_alpha / is_upper / is_lower
+println(is_digit("12345"));
+println(is_digit("123a5"));
+println(is_alpha("abcXYZ"));
+println(is_alpha("abc123"));
+println(is_upper("ABC"));
+println(is_upper("ABc"));
+println(is_lower("abc"));
+println(is_lower("aBc"));
+
+// split with empty separator (character split)
+println(split("abc", ""));
+
+// join with empty separator
+println(join("", split("h e l l o", " ")));

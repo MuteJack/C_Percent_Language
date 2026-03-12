@@ -20,6 +20,7 @@
 #include <sstream>
 #include <algorithm>
 #include <numeric>
+#include <cctype>
 
 // ============== CpctDict (dictionary/map operations) ==============
 
@@ -2512,6 +2513,189 @@ CpctValue Interpreter::callFunction(const std::string& name, const std::vector<C
             return CpctValue(arg.toBool());
         }
     }
+    // ============== String methods ==============
+    // split(s, sep) — split string by separator, returns array of strings
+    if (name == "split") {
+        if (args.size() != 2) throw RuntimeError("split() takes exactly 2 arguments (string, separator)");
+        if (!args[0].isString() || !args[1].isString())
+            throw RuntimeError("split() requires string arguments");
+        const std::string& s = args[0].asString();
+        const std::string& sep = args[1].asString();
+        std::vector<CpctValue> result;
+        if (sep.empty()) {
+            // Split into individual characters
+            for (char c : s) result.push_back(CpctValue(std::string(1, c)));
+        } else {
+            size_t start = 0, pos;
+            while ((pos = s.find(sep, start)) != std::string::npos) {
+                result.push_back(CpctValue(s.substr(start, pos - start)));
+                start = pos + sep.size();
+            }
+            result.push_back(CpctValue(s.substr(start)));
+        }
+        return CpctValue(std::move(result));
+    }
+
+    // join(sep, arr) — join array elements into string with separator
+    if (name == "join") {
+        if (args.size() != 2) throw RuntimeError("join() takes exactly 2 arguments (separator, array)");
+        if (!args[0].isString()) throw RuntimeError("join() first argument must be a string separator");
+        if (!args[1].isArray()) throw RuntimeError("join() second argument must be an array");
+        const std::string& sep = args[0].asString();
+        const auto& arr = args[1].asArray();
+        std::string result;
+        for (size_t i = 0; i < arr.size(); i++) {
+            if (i > 0) result += sep;
+            result += arr[i].toString();
+        }
+        return CpctValue(std::move(result));
+    }
+
+    // upper(s) — convert string to uppercase
+    if (name == "upper") {
+        if (args.size() != 1) throw RuntimeError("upper() takes exactly 1 argument");
+        if (!args[0].isString()) throw RuntimeError("upper() requires a string argument");
+        std::string result = args[0].asString();
+        for (char& c : result) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        return CpctValue(std::move(result));
+    }
+
+    // lower(s) — convert string to lowercase
+    if (name == "lower") {
+        if (args.size() != 1) throw RuntimeError("lower() takes exactly 1 argument");
+        if (!args[0].isString()) throw RuntimeError("lower() requires a string argument");
+        std::string result = args[0].asString();
+        for (char& c : result) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return CpctValue(std::move(result));
+    }
+
+    // find(s, sub) — find index of substring, returns -1 if not found
+    if (name == "find") {
+        if (args.size() != 2) throw RuntimeError("find() takes exactly 2 arguments (string, substring)");
+        if (!args[0].isString() || !args[1].isString())
+            throw RuntimeError("find() requires string arguments");
+        size_t pos = args[0].asString().find(args[1].asString());
+        return CpctValue(pos == std::string::npos ? int64_t(-1) : static_cast<int64_t>(pos));
+    }
+
+    // replace(s, old, new) — replace all occurrences of old with new
+    if (name == "replace") {
+        if (args.size() != 3) throw RuntimeError("replace() takes exactly 3 arguments (string, old, new)");
+        if (!args[0].isString() || !args[1].isString() || !args[2].isString())
+            throw RuntimeError("replace() requires string arguments");
+        std::string result = args[0].asString();
+        const std::string& oldStr = args[1].asString();
+        const std::string& newStr = args[2].asString();
+        if (!oldStr.empty()) {
+            size_t pos = 0;
+            while ((pos = result.find(oldStr, pos)) != std::string::npos) {
+                result.replace(pos, oldStr.size(), newStr);
+                pos += newStr.size();
+            }
+        }
+        return CpctValue(std::move(result));
+    }
+
+    // trim(s) — remove leading and trailing whitespace
+    if (name == "trim") {
+        if (args.size() != 1) throw RuntimeError("trim() takes exactly 1 argument");
+        if (!args[0].isString()) throw RuntimeError("trim() requires a string argument");
+        const std::string& s = args[0].asString();
+        size_t start = s.find_first_not_of(" \t\n\r\f\v");
+        if (start == std::string::npos) return CpctValue(std::string(""));
+        size_t end = s.find_last_not_of(" \t\n\r\f\v");
+        return CpctValue(s.substr(start, end - start + 1));
+    }
+
+    // substr(s, start, len) — extract substring
+    if (name == "substr") {
+        if (args.size() != 3) throw RuntimeError("substr() takes exactly 3 arguments (string, start, length)");
+        if (!args[0].isString()) throw RuntimeError("substr() first argument must be a string");
+        const std::string& s = args[0].asString();
+        int64_t start = args[1].toNumber();
+        int64_t len = args[2].toNumber();
+        if (start < 0) start = 0;
+        if (start >= static_cast<int64_t>(s.size())) return CpctValue(std::string(""));
+        return CpctValue(s.substr(static_cast<size_t>(start), static_cast<size_t>(len)));
+    }
+
+    // reverse(s) — reverse a string
+    if (name == "reverse") {
+        if (args.size() != 1) throw RuntimeError("reverse() takes exactly 1 argument");
+        if (!args[0].isString()) throw RuntimeError("reverse() requires a string argument");
+        std::string result = args[0].asString();
+        std::reverse(result.begin(), result.end());
+        return CpctValue(std::move(result));
+    }
+
+    // is_contains(s, sub) — check if string contains substring
+    if (name == "is_contains") {
+        if (args.size() != 2) throw RuntimeError("is_contains() takes exactly 2 arguments (string, substring)");
+        if (!args[0].isString() || !args[1].isString())
+            throw RuntimeError("is_contains() requires string arguments");
+        return CpctValue(args[0].asString().find(args[1].asString()) != std::string::npos);
+    }
+
+    // is_starts_with(s, prefix) — check if string starts with prefix
+    if (name == "is_starts_with") {
+        if (args.size() != 2) throw RuntimeError("is_starts_with() takes exactly 2 arguments (string, prefix)");
+        if (!args[0].isString() || !args[1].isString())
+            throw RuntimeError("is_starts_with() requires string arguments");
+        const std::string& s = args[0].asString();
+        const std::string& pre = args[1].asString();
+        return CpctValue(s.size() >= pre.size() && s.compare(0, pre.size(), pre) == 0);
+    }
+
+    // is_ends_with(s, suffix) — check if string ends with suffix
+    if (name == "is_ends_with") {
+        if (args.size() != 2) throw RuntimeError("is_ends_with() takes exactly 2 arguments (string, suffix)");
+        if (!args[0].isString() || !args[1].isString())
+            throw RuntimeError("is_ends_with() requires string arguments");
+        const std::string& s = args[0].asString();
+        const std::string& suf = args[1].asString();
+        return CpctValue(s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0);
+    }
+
+    // is_digit(s) — check if all characters are digits
+    if (name == "is_digit") {
+        if (args.size() != 1) throw RuntimeError("is_digit() takes exactly 1 argument");
+        if (!args[0].isString()) throw RuntimeError("is_digit() requires a string argument");
+        const std::string& s = args[0].asString();
+        if (s.empty()) return CpctValue(false);
+        for (char c : s) if (!std::isdigit(static_cast<unsigned char>(c))) return CpctValue(false);
+        return CpctValue(true);
+    }
+
+    // is_alpha(s) — check if all characters are alphabetic
+    if (name == "is_alpha") {
+        if (args.size() != 1) throw RuntimeError("is_alpha() takes exactly 1 argument");
+        if (!args[0].isString()) throw RuntimeError("is_alpha() requires a string argument");
+        const std::string& s = args[0].asString();
+        if (s.empty()) return CpctValue(false);
+        for (char c : s) if (!std::isalpha(static_cast<unsigned char>(c))) return CpctValue(false);
+        return CpctValue(true);
+    }
+
+    // is_upper(s) — check if all characters are uppercase
+    if (name == "is_upper") {
+        if (args.size() != 1) throw RuntimeError("is_upper() takes exactly 1 argument");
+        if (!args[0].isString()) throw RuntimeError("is_upper() requires a string argument");
+        const std::string& s = args[0].asString();
+        if (s.empty()) return CpctValue(false);
+        for (char c : s) if (!std::isupper(static_cast<unsigned char>(c))) return CpctValue(false);
+        return CpctValue(true);
+    }
+
+    // is_lower(s) — check if all characters are lowercase
+    if (name == "is_lower") {
+        if (args.size() != 1) throw RuntimeError("is_lower() takes exactly 1 argument");
+        if (!args[0].isString()) throw RuntimeError("is_lower() requires a string argument");
+        const std::string& s = args[0].asString();
+        if (s.empty()) return CpctValue(false);
+        for (char c : s) if (!std::islower(static_cast<unsigned char>(c))) return CpctValue(false);
+        return CpctValue(true);
+    }
+
     if (name == "divmod") {
         if (args.size() != 2) throw RuntimeError("divmod() takes exactly 2 arguments");
         if (args[0].isInt() && args[1].isInt()) {
