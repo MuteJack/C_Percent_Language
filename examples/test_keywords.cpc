@@ -1,0 +1,72 @@
+// Keywords Test: let, ref, const, static, heap
+
+// ===== ref (reference) =====
+println("=== ref ===");
+int x = 10;
+ref int r = x;
+r = 20;
+println(x);            // 20
+
+void swap(ref int a, ref int b) {
+    int temp = a;
+    a = b;
+    b = temp;
+}
+int a = 1;
+int b = 2;
+swap(ref a, ref b);
+println(a, b);          // 2 1
+
+// ===== const (immutable) =====
+println("=== const ===");
+const int MAX = 100;
+println(MAX);           // 100
+
+const string NAME = "CPC";
+println(NAME);          // CPC
+
+const float PI = 3.14;
+println(PI);            // 3.14
+
+// const ref (read-only reference)
+const ref int cr = x;
+println(cr);            // 20
+
+// ===== static (persist across calls) =====
+println("=== static ===");
+void counter() {
+    static int count = 0;
+    count++;
+    println(count);
+}
+counter();              // 1
+counter();              // 2
+counter();              // 3
+
+// static const
+void getMax() {
+    static const int LIMIT = 999;
+    println(LIMIT);
+}
+getMax();               // 999
+
+// ===== let (ownership transfer) =====
+println("=== let ===");
+int val = 42;
+let int moved = val;
+println(moved);         // 42
+
+// Ownership transfer via function
+void consume(let int v) {
+    println(v);
+}
+int data = 99;
+consume(let data);      // 99
+
+// ===== heap (heap allocation marker) =====
+println("=== heap ===");
+heap int h = 77;
+println(h);             // 77
+
+heap string hs = "heap string";
+println(hs);            // heap string

@@ -25,6 +25,7 @@ enum class TokenType {
     KW_PRINT, KW_PRINTLN, KW_INPUT, KW_TRUE, KW_FALSE,
     KW_BREAK, KW_CONTINUE, KW_SWITCH, KW_CASE, KW_DEFAULT,
     KW_DICT, KW_MAP, KW_VECTOR,
+    KW_LET, KW_REF, KW_CONST, KW_STATIC, KW_HEAP,
 
     // Operators
     PLUS, MINUS, STAR, SLASH, PERCENT, POWER, DIVMOD,
@@ -98,6 +99,11 @@ inline const std::unordered_map<std::string, TokenType>& getKeywords() {
         {"dict",     TokenType::KW_DICT},
         {"map",      TokenType::KW_MAP},
         {"vector",   TokenType::KW_VECTOR},
+        {"let",      TokenType::KW_LET},
+        {"ref",      TokenType::KW_REF},
+        {"const",    TokenType::KW_CONST},
+        {"static",   TokenType::KW_STATIC},
+        {"heap",     TokenType::KW_HEAP},
     };
     return keywords;
 }
@@ -150,6 +156,11 @@ inline std::string tokenTypeToString(TokenType type) {
         case TokenType::KW_DICT: return "dict";
         case TokenType::KW_MAP: return "map";
         case TokenType::KW_VECTOR: return "vector";
+        case TokenType::KW_LET: return "let";
+        case TokenType::KW_REF: return "ref";
+        case TokenType::KW_CONST: return "const";
+        case TokenType::KW_STATIC: return "static";
+        case TokenType::KW_HEAP: return "heap";
         case TokenType::PLUS: return "+";
         case TokenType::MINUS: return "-";
         case TokenType::STAR: return "*";

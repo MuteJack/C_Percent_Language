@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <limits>
+#include <unordered_set>
 
 // Forward declarations
 struct CpctValue;
@@ -429,12 +430,22 @@ public:
     bool isRef(const std::string& name) const;
     // Returns the Environment that owns the variable (for ref binding at call sites).
     Environment* findOwner(const std::string& name);
+    // Marks a variable as const (immutable). set() will throw on const variables.
+    void markConst(const std::string& name);
+    // Marks a variable as moved (ownership transferred). get()/set() will throw on moved variables.
+    void markMoved(const std::string& name);
+    // Returns true if name is a const variable in this scope or parent chain.
+    bool isConst(const std::string& name) const;
+    // Returns true if name is a moved variable in this scope or parent chain.
+    bool isMoved(const std::string& name) const;
 
 private:
     std::unordered_map<std::string, CpctValue> vars_;
     std::unordered_map<std::string, std::string> types_; // declared types (used for type coercion checks)
     // Reference bindings: name → (target Environment, target variable name)
     std::unordered_map<std::string, std::pair<Environment*, std::string>> refs_;
+    std::unordered_set<std::string> consts_;  // const-qualified variable names
+    std::unordered_set<std::string> moved_;   // moved (ownership-transferred) variable names
     Environment* parent_; // outer scope (nullptr if none)
 };
 
@@ -461,6 +472,8 @@ private:
     Environment globalEnv_;
     Environment* currentEnv_; // currently active scope (swapped on function call / block entry)
     std::unordered_map<std::string, FuncDef> functions_; // global function table
+    std::unordered_map<std::string, std::string> staticKeys_; // "line:varName" → mangled name in globalEnv_
+    int staticCounter_ = 0; // monotonic counter for unique static variable names
 
     // ---- Statement execution methods ----
     // Dispatches to the appropriate exec* function based on stmt's dynamic type.

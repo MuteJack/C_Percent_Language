@@ -9,8 +9,12 @@ C%는 C/C++ 문법을 기반으로 하되, 일부 동작이 다르다. C/C++ 경
 | `float` 기본 크기 | 32비트 (`float`) | **64비트** (`double` 상당, `float64` alias) |
 | `int8` | `char`와 동의어, 문자로 취급 | **순수 정수**, 문자 아님 |
 | `int` 오버플로 | UB (C) / 구현 정의 | **wrap-around 보장** |
-| 참조 | `int& r = x` | `int@ r = x` (`@` 기호 사용) |
-| 참조 전달 | `void f(int& x)` → `f(x)` (암묵적) | `void f(int@ x)` → `f(@x)` (호출부 명시) |
+| 참조 | `int& r = x` | `ref int r = x` (`ref` 키워드 사용) |
+| 참조 전달 | `void f(int& x)` → `f(x)` (암묵적) | `void f(ref int x)` → `f(ref x)` (호출부 명시) |
+| 소유권 이전 | `auto y = std::move(x)` | `let int y = x` (`let` 키워드) |
+| const | `const int x = 10;` | `const int x = 10;` (동일 문법) |
+| static | `static int count = 0;` | `static int count = 0;` (동일 문법) |
+| heap | `int* p = new int(42)` | `heap int x = 42` (스코프 기반 자동 해제) |
 | 포인터 | `int* p = &x` | **없음** (미구현) |
 | `null`/`nullptr` | 존재 | **없음** (미구현) |
 

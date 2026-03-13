@@ -33,7 +33,8 @@ enum class ExprKind {
     DictLiteral,
     ChainedComparison,
     Ternary,
-    RefArg,  // @variable — pass-by-reference argument marker
+    RefArg,  // ref variable — pass-by-reference argument marker
+    LetArg,  // let variable — ownership transfer argument marker
 };
 
 // Expression node — all ExprKinds share a single struct (tagged union style).
@@ -267,6 +268,14 @@ inline ExprPtr makeRefArg(const std::string& varName, int line) {
     return e;
 }
 
+inline ExprPtr makeLetArg(const std::string& varName, int line) {
+    auto e = std::make_unique<Expr>();
+    e->kind = ExprKind::LetArg;
+    e->name = varName;
+    e->line = line;
+    return e;
+}
+
 // ============== Statements ==============
 
 enum class StmtKind {
@@ -279,6 +288,7 @@ struct FuncParam {
     std::string type;
     std::string name;
     bool isRef = false;
+    bool isLet = false;
 };
 
 // Statement node — like Expr, active fields depend on StmtKind.
@@ -301,6 +311,10 @@ struct Stmt {
     std::string varName;
     ExprPtr initExpr;
     std::vector<ExprPtr> arrayDimSizes; // dimension sizes for array declaration (nullptr = inferred)
+    bool isConst = false;   // const qualifier
+    bool isStatic = false;  // static qualifier
+    bool isHeap = false;    // heap qualifier
+    bool isLet = false;     // let qualifier (ownership transfer)
 
     // Expression statement
     ExprPtr expr;

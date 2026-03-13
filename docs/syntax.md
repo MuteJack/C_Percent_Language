@@ -29,6 +29,75 @@ int8 small = 127;
 
 자세한 내용은 [datatype.md](datatype.md) 참고.
 
+## 변수 한정자
+
+변수 선언 앞에 한정자를 붙여 동작을 제어할 수 있다.
+
+### const — 불변 변수
+
+```
+const int MAX = 100;         // 재대입 불가
+const string NAME = "CPC";
+// MAX = 200;                // 에러: Cannot assign to const variable
+// MAX++;                    // 에러: Cannot modify const variable
+```
+
+- 반드시 초기화 필요 (`const int x;` → 에러)
+- 배열/벡터/dict에도 적용 가능 — 원소 수정도 불가 (`push`, `pop` 등 금지)
+
+### static — 값 유지
+
+함수 내에서 호출 간에 값이 유지되는 변수.
+
+```
+void counter() {
+    static int count = 0;    // 최초 1회만 초기화
+    count++;
+    println(count);
+}
+counter();                   // 1
+counter();                   // 2
+counter();                   // 3
+```
+
+- `static const` 조합 가능 — 정적 상수
+
+### heap — 힙 할당
+
+변수를 Stack이 아닌 Heap Memory에 할당함을 명시.
+
+```
+heap int x = 42;
+heap string s = "hello";
+```
+
+### let — 소유권 이전
+
+변수의 소유권을 이전한다. 이전 후 원본 변수는 사용할 수 없다.
+
+```
+int x = 42;
+let int y = x;               // x의 값이 y로 이동
+println(y);                   // 42
+// println(x);               // 에러: Variable 'x' has been moved
+```
+
+- 초기화자는 반드시 변수여야 함 (리터럴 불가)
+- 함수 매개변수에도 사용 가능 (아래 참조)
+
+### 한정자 조합 규칙
+
+| 조합 | 허용 여부 |
+|------|-----------|
+| `const ref` | O — 읽기 전용 참조 |
+| `const static` / `static const` | O — 정적 상수 |
+| `let` + `ref` | X |
+| `static` + `ref` | X |
+| `static` + `let` | X |
+| `heap` + `ref` | X |
+| `heap` + `let` | X |
+| `static` + `heap` | X |
+
 ## 출력
 
 ```
@@ -292,26 +361,27 @@ int factorial(int n) {
 
 ## 참조 (Reference)
 
-`@` 기호를 사용하여 변수의 별칭(alias)을 만든다.
+`ref` 키워드를 사용하여 변수의 별칭(alias)을 만든다.
 
 ### 참조 변수
 
 ```
 int x = 10;
-int@ ref = x;       // ref는 x의 별칭
-ref = 20;
+ref int r = x;       // r은 x의 별칭
+r = 20;
 println(x);          // 20 (x가 변경됨)
 ```
 
-- 참조는 반드시 초기화 필요 (`int@ ref;` → 에러)
-- 초기화자는 변수여야 함 (`int@ ref = 5;` → 에러)
+- 참조는 반드시 초기화 필요 (`ref int r;` → 에러)
+- 초기화자는 변수여야 함 (`ref int r = 5;` → 에러)
 - 대입은 타겟에 write-through (재바인딩 불가)
-- 모든 타입 지원 (`int@`, `float@`, `string@`, `vector<int>@` 등)
+- 모든 타입 지원 (`ref int`, `ref float`, `ref string`, `ref vector<int>` 등)
+- `const ref`로 읽기 전용 참조 가능
 
 ### 함수 참조 전달
 
 ```
-void swap(int@ a, int@ b) {
+void swap(ref int a, ref int b) {
     int temp = a;
     a = b;
     b = temp;
@@ -319,22 +389,38 @@ void swap(int@ a, int@ b) {
 
 int a = 1;
 int b = 2;
-swap(@a, @b);        // 호출부에서 @로 명시
+swap(ref a, ref b);  // 호출부에서 ref로 명시
 println(a, b);       // 2 1
 ```
 
-- 함수 매개변수: `타입@ 이름`으로 선언
-- 호출 시: `@변수`로 전달 (값 전달과 명확히 구분)
-- `@` 없이 ref 매개변수에 전달 → 에러
-- 비-ref 매개변수에 `@` 전달 → 에러
+- 함수 매개변수: `ref 타입 이름`으로 선언
+- 호출 시: `ref 변수`로 전달 (값 전달과 명확히 구분)
+- `ref` 없이 ref 매개변수에 전달 → 에러
+- 비-ref 매개변수에 `ref` 전달 → 에러
+
+### 함수 소유권 전달 (let)
+
+```
+void consume(let int v) {
+    println(v);
+}
+
+int data = 99;
+consume(let data);   // 소유권 이전
+// println(data);    // 에러: data는 이동됨
+```
+
+- 함수 매개변수: `let 타입 이름`으로 선언
+- 호출 시: `let 변수`로 전달
+- 전달 후 원본 변수는 사용 불가
 
 ### 참조의 참조
 
 ```
 int x = 10;
-int@ ref = x;
-int@ ref2 = ref;     // ref2도 x를 가리킴
-ref2 = 99;
+ref int r = x;
+ref int r2 = r;      // r2도 x를 가리킴
+r2 = 99;
 println(x);          // 99
 ```
 

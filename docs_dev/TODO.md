@@ -45,7 +45,7 @@
 | 기능           | C++                  | Python            | C%             | 상태   |
 | -------------- | -------------------- | ----------------- | -------------- | ------ |
 | 기본 매개변수  | `int f(int x = 0)` | `def f(x=0)`    | **없음** | 미구현 |
-| 참조 전달      | `void f(int& x)`   | (뮤터블 객체)     | `void f(int@ x)` → `f(@x)` | 구현완료 |
+| 참조 전달 (ref) | `void f(int& x)`   | (뮤터블 객체)     | `void f(ref int x)` → `f(ref x)` | 구현완료 |
 | 가변 인자      | `variadic`         | `*args`         | **없음** | 미구현 |
 | 람다/익명 함수 | `[](int x){...}`   | `lambda x: ...` | **없음** | 미구현 |
 
@@ -57,7 +57,10 @@
 | enum           | `enum`                     | `Enum`  | **없음** | 미구현 |
 | struct/class   | `struct`/`class`         | `class` | **없음** | 미구현 |
 | 튜플/다중 반환 | `tuple`/structured binding | `tuple` | **없음** | 미구현 |
-| const          | `const`                    | (없음)    | **없음** | 미구현 |
+| const          | `const`                    | (없음)    | `const int x = 10;`        | 구현완료 |
+| static         | `static`                   | (없음)    | `static int count = 0;`    | 구현완료 |
+| let (소유권)   | `std::move(x)`             | (기본 동작) | `let int y = x;`          | 구현완료 |
+| heap           | `new int(42)`              | (없음)    | `heap int x = 42;`         | 구현완료 |
 | 포인터         | `int* p = &x`              | (없음)    | **없음** | 미구현 |
 | 주소/역참조    | `&x`, `*p`               | (없음)    | **없음** | 미구현 |
 

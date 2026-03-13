@@ -357,6 +357,10 @@ void Environment::defineRef(const std::string& name, Environment* targetEnv, con
 }
 
 CpctValue& Environment::get(const std::string& name) {
+    // Check moved first
+    if (moved_.count(name)) {
+        throw RuntimeError("Variable '" + name + "' has been moved and can no longer be used");
+    }
     // Check refs first in current scope
     auto refIt = refs_.find(name);
     if (refIt != refs_.end()) {
@@ -369,6 +373,14 @@ CpctValue& Environment::get(const std::string& name) {
 }
 
 void Environment::set(const std::string& name, CpctValue value) {
+    // Check const first
+    if (consts_.count(name)) {
+        throw RuntimeError("Cannot assign to const variable '" + name + "'");
+    }
+    // Check moved
+    if (moved_.count(name)) {
+        throw RuntimeError("Variable '" + name + "' has been moved and can no longer be used");
+    }
     // Check refs first in current scope
     auto refIt = refs_.find(name);
     if (refIt != refs_.end()) {
@@ -423,6 +435,33 @@ Environment* Environment::findOwner(const std::string& name) {
     return nullptr;
 }
 
+void Environment::markConst(const std::string& name) {
+    consts_.insert(name);
+}
+
+void Environment::markMoved(const std::string& name) {
+    moved_.insert(name);
+}
+
+bool Environment::isConst(const std::string& name) const {
+    if (consts_.count(name)) return true;
+    // Check refs — if this is a ref, check target's const status
+    auto refIt = refs_.find(name);
+    if (refIt != refs_.end()) {
+        return refIt->second.first->isConst(refIt->second.second);
+    }
+    if (vars_.count(name)) return false;
+    if (parent_) return parent_->isConst(name);
+    return false;
+}
+
+bool Environment::isMoved(const std::string& name) const {
+    if (moved_.count(name)) return true;
+    if (vars_.count(name) || refs_.count(name)) return false;
+    if (parent_) return parent_->isMoved(name);
+    return false;
+}
+
 // ============== Interpreter (statement execution engine) ==============
 
 Interpreter::Interpreter() : currentEnv_(&globalEnv_) {}
@@ -456,6 +495,60 @@ void Interpreter::execStmt(const Stmt* stmt) {
 // Variable declaration execution: dict / map / vector / array (1D→TypedArray, multi-dim) / scalar
 // Coerces initialization values based on type and performs range checking (checkIntRange).
 void Interpreter::execVarDecl(const Stmt* stmt) {
+    // Static variable: persist across function calls via globalEnv_ with mangled name
+    if (stmt->isStatic) {
+        std::string baseType = isReferenceType(stmt->varType) ? stripRefQualifier(stmt->varType) : stmt->varType;
+        std::string staticKey = std::to_string(stmt->line) + ":" + stmt->varName;
+        if (staticKeys_.find(staticKey) == staticKeys_.end()) {
+            // First encounter: initialize and store in globalEnv_
+            std::string mangled = "__static_" + std::to_string(staticCounter_++);
+            CpctValue initVal;
+            if (stmt->initExpr) {
+                initVal = eval(stmt->initExpr.get());
+                // Apply type coercion
+                if (isSizedIntegerType(baseType) || isCharType(baseType)) {
+                    initVal = checkIntRange(baseType, std::move(initVal), stmt->line);
+                } else if (isFloatType(baseType)) {
+                    initVal = coerceFloat(baseType, std::move(initVal), stmt->line);
+                }
+            } else {
+                initVal = makeDefaultValue(baseType);
+            }
+            globalEnv_.define(mangled, std::move(initVal), baseType);
+            staticKeys_[staticKey] = mangled;
+            if (stmt->isConst) globalEnv_.markConst(mangled);
+        }
+        // Bind local name as ref to the global static storage
+        std::string& mangled = staticKeys_[staticKey];
+        currentEnv_->defineRef(stmt->varName, &globalEnv_, mangled, baseType);
+        if (stmt->isConst) currentEnv_->markConst(stmt->varName);
+        return;
+    }
+
+    // Let variable: ownership transfer (source becomes invalid)
+    if (stmt->isLet) {
+        if (!stmt->initExpr) {
+            throw RuntimeError("'let' variable '" + stmt->varName + "' must be initialized at line " + std::to_string(stmt->line));
+        }
+        if (stmt->initExpr->kind != ExprKind::Identifier) {
+            throw RuntimeError("'let' variable '" + stmt->varName + "' must be initialized with a variable at line " + std::to_string(stmt->line));
+        }
+        std::string sourceName = stmt->initExpr->name;
+        CpctValue val = eval(stmt->initExpr.get());
+        currentEnv_->define(stmt->varName, std::move(val), stmt->varType);
+        // Mark source as moved
+        currentEnv_->markMoved(sourceName);
+        if (stmt->isConst) currentEnv_->markConst(stmt->varName);
+        return;
+    }
+
+    // Const validation: must have initializer
+    if (stmt->isConst && !isReferenceType(stmt->varType)) {
+        if (!stmt->initExpr) {
+            throw RuntimeError("'const' variable '" + stmt->varName + "' must be initialized at line " + std::to_string(stmt->line));
+        }
+    }
+
     // Reference variable declaration: type@ name = var;
     if (isReferenceType(stmt->varType)) {
         std::string baseType = stripRefQualifier(stmt->varType);
@@ -471,6 +564,7 @@ void Interpreter::execVarDecl(const Stmt* stmt) {
             throw RuntimeError("Undefined variable '" + targetName + "' in reference initialization at line " + std::to_string(stmt->line));
         }
         currentEnv_->defineRef(stmt->varName, ownerEnv, targetName, baseType);
+        if (stmt->isConst) currentEnv_->markConst(stmt->varName);
         return;
     }
 
@@ -489,6 +583,7 @@ void Interpreter::execVarDecl(const Stmt* stmt) {
         }
 
         currentEnv_->define(stmt->varName, CpctValue(std::move(dict)), stmt->varType);
+        if (stmt->isConst) currentEnv_->markConst(stmt->varName);
         return;
     }
 
@@ -514,6 +609,7 @@ void Interpreter::execVarDecl(const Stmt* stmt) {
         }
 
         currentEnv_->define(stmt->varName, CpctValue(std::move(dict)), stmt->varType);
+        if (stmt->isConst) currentEnv_->markConst(stmt->varName);
         return;
     }
 
@@ -535,6 +631,7 @@ void Interpreter::execVarDecl(const Stmt* stmt) {
         }
 
         currentEnv_->define(stmt->varName, CpctValue(std::move(elements)), stmt->varType);
+        if (stmt->isConst) currentEnv_->markConst(stmt->varName);
         return;
     }
 
@@ -688,10 +785,11 @@ void Interpreter::execVarDecl(const Stmt* stmt) {
                 throw RuntimeError("Cannot declare multi-dimensional array without all sizes or initializer at line " + std::to_string(stmt->line));
             }
         }
+        if (stmt->isConst) currentEnv_->markConst(stmt->varName);
         return;
     }
 
-    // Scalar declaration (unchanged)
+    // Scalar declaration
     CpctValue val;
     if (stmt->initExpr) {
         val = eval(stmt->initExpr.get());
@@ -707,6 +805,7 @@ void Interpreter::execVarDecl(const Stmt* stmt) {
         val = coerceFloat(stmt->varType, std::move(val), stmt->line);
     }
     currentEnv_->define(stmt->varName, std::move(val), stmt->varType);
+    if (stmt->isConst) currentEnv_->markConst(stmt->varName);
 }
 
 void Interpreter::execBlock(const Stmt* stmt) {
@@ -1013,6 +1112,8 @@ CpctValue Interpreter::eval(const Expr* expr) {
             return CpctValue(std::move(dict));
         }
         case ExprKind::PreIncrement: {
+            if (currentEnv_->isConst(expr->operand->name))
+                throw RuntimeError("Cannot modify const variable '" + expr->operand->name + "' at line " + std::to_string(expr->line));
             CpctValue& ref = currentEnv_->get(expr->operand->name);
             if (ref.isInt()) {
                 int64_t v = ref.asInt();
@@ -1038,6 +1139,8 @@ CpctValue Interpreter::eval(const Expr* expr) {
             return ref;
         }
         case ExprKind::PreDecrement: {
+            if (currentEnv_->isConst(expr->operand->name))
+                throw RuntimeError("Cannot modify const variable '" + expr->operand->name + "' at line " + std::to_string(expr->line));
             CpctValue& ref = currentEnv_->get(expr->operand->name);
             if (ref.isInt()) {
                 int64_t v = ref.asInt();
@@ -1063,6 +1166,8 @@ CpctValue Interpreter::eval(const Expr* expr) {
             return ref;
         }
         case ExprKind::PostIncrement: {
+            if (currentEnv_->isConst(expr->operand->name))
+                throw RuntimeError("Cannot modify const variable '" + expr->operand->name + "' at line " + std::to_string(expr->line));
             CpctValue& ref = currentEnv_->get(expr->operand->name);
             CpctValue old = ref;
             if (ref.isInt()) {
@@ -1089,6 +1194,8 @@ CpctValue Interpreter::eval(const Expr* expr) {
             return old;
         }
         case ExprKind::PostDecrement: {
+            if (currentEnv_->isConst(expr->operand->name))
+                throw RuntimeError("Cannot modify const variable '" + expr->operand->name + "' at line " + std::to_string(expr->line));
             CpctValue& ref = currentEnv_->get(expr->operand->name);
             CpctValue old = ref;
             if (ref.isInt()) {
@@ -1181,9 +1288,11 @@ CpctValue Interpreter::eval(const Expr* expr) {
             return CpctValue(true);
         }
         case ExprKind::RefArg:
-            // RefArg (@variable) should only appear as function call arguments.
-            // If evaluated directly, it's an error.
-            throw RuntimeError("'@" + expr->name + "' can only be used as a function argument for pass-by-reference at line " + std::to_string(expr->line));
+            // RefArg (ref variable) should only appear as function call arguments.
+            throw RuntimeError("'ref " + expr->name + "' can only be used as a function argument for pass-by-reference at line " + std::to_string(expr->line));
+        case ExprKind::LetArg:
+            // LetArg (let variable) should only appear as function call arguments.
+            throw RuntimeError("'let " + expr->name + "' can only be used as a function argument for ownership transfer at line " + std::to_string(expr->line));
     }
     throw RuntimeError("Unknown expression kind");
 }
@@ -1625,6 +1734,19 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
         throw RuntimeError("Unknown type method '" + method + "' for type '" + typeName + "'");
     }
 
+    // Const check for mutating built-in functions
+    {
+        static const std::unordered_set<std::string> mutatingFuncs = {
+            "remove", "push", "pop", "insert", "erase", "clear", "sort", "sortkey", "sortk", "sortval", "sortv"
+        };
+        if (mutatingFuncs.count(expr->funcName) && !expr->args.empty() &&
+            expr->args[0]->kind == ExprKind::Identifier &&
+            currentEnv_->isConst(expr->args[0]->name)) {
+            throw RuntimeError("Cannot modify const variable '" + expr->args[0]->name +
+                "' via " + expr->funcName + "() at line " + std::to_string(expr->line));
+        }
+    }
+
     // remove() needs to mutate the original dict — special handling
     if (expr->funcName == "remove") {
         if (expr->args.size() != 2)
@@ -2060,8 +2182,11 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
     std::vector<CpctValue> args;
     for (auto& arg : expr->args) {
         if (arg->kind == ExprKind::RefArg) {
-            // Don't evaluate @var — just push a placeholder; callFunction handles it via argExprs
+            // Don't evaluate ref var — just push a placeholder; callFunction handles it via argExprs
             args.push_back(CpctValue(int64_t(0))); // placeholder
+        } else if (arg->kind == ExprKind::LetArg) {
+            // Evaluate let var normally — value will be moved in callFunction
+            args.push_back(eval(makeIdentifier(arg->name, arg->line).get()));
         } else {
             args.push_back(eval(arg.get()));
         }
@@ -2099,6 +2224,15 @@ CpctValue Interpreter::evalArrayAccess(const Expr* expr) {
 }
 
 CpctValue Interpreter::evalArrayAssign(const Expr* expr) {
+    // Check if the array variable is const
+    {
+        const Expr* root = expr->arrayExpr.get();
+        while (root->kind == ExprKind::ArrayAccess) root = root->arrayExpr.get();
+        if (root->kind == ExprKind::Identifier && currentEnv_->isConst(root->name)) {
+            throw RuntimeError("Cannot modify element of const variable '" + root->name + "' at line " + std::to_string(expr->line));
+        }
+    }
+
     CpctValue val = eval(expr->right.get());
 
     // Find the root variable name for type enforcement
@@ -2172,6 +2306,15 @@ CpctValue Interpreter::evalArrayAssign(const Expr* expr) {
 }
 
 CpctValue Interpreter::evalArrayCompoundAssign(const Expr* expr) {
+    // Check if the array variable is const
+    {
+        const Expr* root = expr->arrayExpr.get();
+        while (root->kind == ExprKind::ArrayAccess) root = root->arrayExpr.get();
+        if (root->kind == ExprKind::Identifier && currentEnv_->isConst(root->name)) {
+            throw RuntimeError("Cannot modify element of const variable '" + root->name + "' at line " + std::to_string(expr->line));
+        }
+    }
+
     // Find the root variable name
     const Expr* cur = expr->arrayExpr.get();
     std::string varName;
@@ -2816,7 +2959,7 @@ CpctValue Interpreter::callFunction(const std::string& name, const std::vector<C
             // Reference parameter: bind to caller's variable
             if (!argExprs || i >= argExprs->size() || (*argExprs)[i]->kind != ExprKind::RefArg) {
                 throw RuntimeError("Reference parameter '" + func.params[i].name +
-                    "' requires @variable argument at line " + std::to_string(line));
+                    "' requires 'ref variable' argument at line " + std::to_string(line));
             }
             std::string targetName = (*argExprs)[i]->name;
             Environment* ownerEnv = currentEnv_->findOwner(targetName);
@@ -2825,11 +2968,25 @@ CpctValue Interpreter::callFunction(const std::string& name, const std::vector<C
                     "' in reference argument at line " + std::to_string(line));
             }
             funcEnv.defineRef(func.params[i].name, ownerEnv, targetName, func.params[i].type);
+        } else if (func.params[i].isLet) {
+            // Let parameter: ownership transfer
+            if (!argExprs || i >= argExprs->size() || (*argExprs)[i]->kind != ExprKind::LetArg) {
+                throw RuntimeError("Ownership transfer parameter '" + func.params[i].name +
+                    "' requires 'let variable' argument at line " + std::to_string(line));
+            }
+            std::string sourceName = (*argExprs)[i]->name;
+            funcEnv.define(func.params[i].name, std::move(args[i]), func.params[i].type);
+            // Mark source as moved in caller's environment
+            currentEnv_->markMoved(sourceName);
         } else {
-            // Value parameter: check that caller didn't pass @var to a non-ref param
+            // Value parameter: check that caller didn't pass ref/let to a non-ref/let param
             if (argExprs && i < argExprs->size() && (*argExprs)[i]->kind == ExprKind::RefArg) {
                 throw RuntimeError("Parameter '" + func.params[i].name +
-                    "' is not a reference parameter, cannot pass @variable at line " + std::to_string(line));
+                    "' is not a reference parameter, cannot pass 'ref variable' at line " + std::to_string(line));
+            }
+            if (argExprs && i < argExprs->size() && (*argExprs)[i]->kind == ExprKind::LetArg) {
+                throw RuntimeError("Parameter '" + func.params[i].name +
+                    "' is not a let parameter, cannot pass 'let variable' at line " + std::to_string(line));
             }
             funcEnv.define(func.params[i].name, args[i]);
         }

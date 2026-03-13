@@ -70,56 +70,109 @@ std::vector<StmtPtr> Parser::parse() {
 }
 
 StmtPtr Parser::parseStatement() {
+    // Parse qualifiers: const, static, heap, let, ref (before type keyword)
+    bool qConst = false, qStatic = false, qHeap = false, qLet = false, qRef = false;
+    int qualLine = current().line;
+
+    while (check(TokenType::KW_CONST) || check(TokenType::KW_STATIC) ||
+           check(TokenType::KW_HEAP) || check(TokenType::KW_LET) ||
+           check(TokenType::KW_REF)) {
+        TokenType qt = current().type;
+        advance();
+        if (qt == TokenType::KW_CONST)  qConst = true;
+        else if (qt == TokenType::KW_STATIC) qStatic = true;
+        else if (qt == TokenType::KW_HEAP)   qHeap = true;
+        else if (qt == TokenType::KW_LET)    qLet = true;
+        else if (qt == TokenType::KW_REF)    qRef = true;
+    }
+
+    bool hasQualifier = qConst || qStatic || qHeap || qLet || qRef;
+
+    // Validate qualifier combinations
+    if (hasQualifier) {
+        if (qLet && qRef) error("'let' and 'ref' cannot be combined at line " + std::to_string(qualLine));
+        if (qStatic && qRef) error("'static' and 'ref' cannot be combined at line " + std::to_string(qualLine));
+        if (qStatic && qLet) error("'static' and 'let' cannot be combined at line " + std::to_string(qualLine));
+        if (qHeap && qRef) error("'heap' and 'ref' cannot be combined at line " + std::to_string(qualLine));
+        if (qHeap && qLet) error("'heap' and 'let' cannot be combined at line " + std::to_string(qualLine));
+        if (qStatic && qHeap) error("'static' and 'heap' cannot be combined at line " + std::to_string(qualLine));
+    }
+
+    // Helper lambda to apply qualifiers to a VarDecl statement
+    auto applyQualifiers = [&](StmtPtr& s) {
+        s->isConst = qConst;
+        s->isStatic = qStatic;
+        s->isHeap = qHeap;
+        s->isLet = qLet;
+    };
+
     // Type keyword -> could be variable decl, function decl, or type cast
     if (isTypeKeyword(current().type)) {
-        // Type cast: int(expr) or type method: int.max()
-        if (peek().type == TokenType::LPAREN || peek().type == TokenType::DOT) {
+        // Type cast: int(expr) or type method: int.max() — only if no qualifiers
+        if (!hasQualifier && (peek().type == TokenType::LPAREN || peek().type == TokenType::DOT)) {
             return parseExprStatement();
         }
 
         std::string type = parseType();
 
-        // Reference type: type@ name = var;
-        if (check(TokenType::AT)) {
-            advance(); // consume @
+        // ref qualifier: append @ to type for internal representation
+        if (qRef) {
             type += "@";
         }
 
         std::string name = expect(TokenType::IDENTIFIER, "Expected identifier after type").value;
 
-        // Function declaration (not allowed with ref type qualifier)
+        // Function declaration (not allowed with qualifiers except on params)
         if (check(TokenType::LPAREN)) {
-            if (!type.empty() && type.back() == '@') {
-                error("Function return type cannot be a reference type at line " + std::to_string(current().line));
+            if (hasQualifier) {
+                error("Qualifiers not allowed on function declarations at line " + std::to_string(current().line));
             }
             return parseFuncDecl(type, name);
         }
 
         // Array declaration: type name[...][...] ...
         if (check(TokenType::LBRACKET)) {
-            if (!type.empty() && type.back() == '@') {
+            if (qRef) {
                 error("Array type cannot be a reference type at line " + std::to_string(current().line));
             }
-            return parseArrayDecl(type, name);
+            auto s = parseArrayDecl(type, name);
+            applyQualifiers(s);
+            return s;
         }
 
-        // Variable declaration (may be reference)
-        return parseVarDecl(type);
+        // Variable declaration (may have qualifiers)
+        auto s = parseVarDecl(type);
+        applyQualifiers(s);
+        return s;
     }
 
     // Dict declaration: dict name = {...};  (untyped, Python-style)
     if (check(TokenType::KW_DICT)) {
-        return parseDictDecl();
+        auto s = parseDictDecl();
+        if (qRef) s->varType += "@";
+        applyQualifiers(s);
+        return s;
     }
 
     // Map declaration: map<KeyType, ValueType> name = {...};  (typed, C++ style)
     if (check(TokenType::KW_MAP)) {
-        return parseMapDecl();
+        auto s = parseMapDecl();
+        if (qRef) s->varType += "@";
+        applyQualifiers(s);
+        return s;
     }
 
     // Vector declaration: vector<Type> name = [...];  (typed dynamic array)
     if (check(TokenType::KW_VECTOR)) {
-        return parseVectorDecl();
+        auto s = parseVectorDecl();
+        if (qRef) s->varType += "@";
+        applyQualifiers(s);
+        return s;
+    }
+
+    // No qualifiers allowed for non-declaration statements
+    if (hasQualifier) {
+        error("Qualifiers (const/static/heap/let/ref) require a type declaration at line " + std::to_string(qualLine));
     }
 
     if (check(TokenType::KW_IF)) return parseIfStmt();
@@ -201,18 +254,11 @@ StmtPtr Parser::parseDictDecl() {
     int line = current().line;
     advance(); // consume 'dict'
 
-    // Reference type: dict@ name = var;
-    bool isRef = false;
-    if (check(TokenType::AT)) {
-        advance();
-        isRef = true;
-    }
-
     // Variable name
     std::string name = expect(TokenType::IDENTIFIER, "Expected dict variable name").value;
 
-    // Untyped dict — type string is just "dict" or "dict@"
-    std::string type = isRef ? "dict@" : "dict";
+    // Untyped dict — type string is just "dict" (ref @ suffix added by parseStatement if needed)
+    std::string type = "dict";
 
     ExprPtr init = nullptr;
     if (match(TokenType::ASSIGN)) {
@@ -241,18 +287,11 @@ StmtPtr Parser::parseMapDecl() {
     std::string valueType = advance().value;
     expect(TokenType::GT, "Expected '>' after value type");
 
-    // Reference type: map<K,V>@ name = var;
-    bool isRef = false;
-    if (check(TokenType::AT)) {
-        advance();
-        isRef = true;
-    }
-
     // Variable name
     std::string name = expect(TokenType::IDENTIFIER, "Expected map variable name").value;
 
-    // Construct type string: "map<string,int>" or "map<string,int>@"
-    std::string type = "map<" + keyType + "," + valueType + ">" + (isRef ? "@" : "");
+    // Construct type string: "map<string,int>" (ref @ suffix added by parseStatement if needed)
+    std::string type = "map<" + keyType + "," + valueType + ">";
 
     ExprPtr init = nullptr;
     if (match(TokenType::ASSIGN)) {
@@ -275,18 +314,11 @@ StmtPtr Parser::parseVectorDecl() {
     std::string elemType = advance().value;
     expect(TokenType::GT, "Expected '>' after element type");
 
-    // Reference type: vector<int>@ name = var;
-    bool isRef = false;
-    if (check(TokenType::AT)) {
-        advance();
-        isRef = true;
-    }
-
     // Variable name
     std::string name = expect(TokenType::IDENTIFIER, "Expected vector variable name").value;
 
-    // Construct type string: "vector<int>" or "vector<int>@"
-    std::string type = "vector<" + elemType + ">" + (isRef ? "@" : "");
+    // Construct type string: "vector<int>" (ref @ suffix added by parseStatement if needed)
+    std::string type = "vector<" + elemType + ">";
 
     ExprPtr init = nullptr;
     if (match(TokenType::ASSIGN)) {
@@ -328,14 +360,19 @@ StmtPtr Parser::parseFuncDecl(const std::string& retType, const std::string& nam
     std::vector<FuncParam> params;
     if (!check(TokenType::RPAREN)) {
         do {
-            std::string paramType = parseType();
             bool paramIsRef = false;
-            if (check(TokenType::AT)) {
-                advance(); // consume @
+            bool paramIsLet = false;
+            // Parse parameter qualifiers: ref or let
+            if (check(TokenType::KW_REF)) {
+                advance();
                 paramIsRef = true;
+            } else if (check(TokenType::KW_LET)) {
+                advance();
+                paramIsLet = true;
             }
+            std::string paramType = parseType();
             std::string paramName = expect(TokenType::IDENTIFIER, "Expected parameter name").value;
-            params.push_back({paramType, paramName, paramIsRef});
+            params.push_back({paramType, paramName, paramIsRef, paramIsLet});
         } while (match(TokenType::COMMA));
     }
     expect(TokenType::RPAREN, "Expected ')' after parameters");
@@ -863,12 +900,20 @@ ExprPtr Parser::parseUnary() {
         return makeUnaryOp(op, std::move(operand), line);
     }
 
-    // Reference argument: @variable (pass-by-reference marker at call site)
-    if (check(TokenType::AT)) {
+    // Reference argument: ref variable (pass-by-reference marker at call site)
+    if (check(TokenType::KW_REF)) {
         int line = current().line;
-        advance(); // consume @
-        std::string varName = expect(TokenType::IDENTIFIER, "Expected variable name after '@'").value;
+        advance(); // consume ref
+        std::string varName = expect(TokenType::IDENTIFIER, "Expected variable name after 'ref'").value;
         return makeRefArg(varName, line);
+    }
+
+    // Let argument: let variable (ownership transfer marker at call site)
+    if (check(TokenType::KW_LET)) {
+        int line = current().line;
+        advance(); // consume let
+        std::string varName = expect(TokenType::IDENTIFIER, "Expected variable name after 'let'").value;
+        return makeLetArg(varName, line);
     }
 
     // Pre-increment / pre-decrement
