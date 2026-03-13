@@ -24,7 +24,7 @@ enum class TokenType {
     KW_IF, KW_ELSE, KW_WHILE, KW_DO, KW_FOR, KW_RETURN,
     KW_PRINT, KW_PRINTLN, KW_INPUT, KW_TRUE, KW_FALSE,
     KW_BREAK, KW_CONTINUE, KW_SWITCH, KW_CASE, KW_DEFAULT,
-    KW_DICT, KW_MAP, KW_VECTOR,
+    KW_DICT, KW_MAP, KW_VECTOR, KW_ARRAY,
     KW_LET, KW_REF, KW_CONST, KW_STATIC, KW_HEAP,
 
     // Operators
@@ -99,6 +99,7 @@ inline const std::unordered_map<std::string, TokenType>& getKeywords() {
         {"dict",     TokenType::KW_DICT},
         {"map",      TokenType::KW_MAP},
         {"vector",   TokenType::KW_VECTOR},
+        {"array",    TokenType::KW_ARRAY},
         {"let",      TokenType::KW_LET},
         {"ref",      TokenType::KW_REF},
         {"const",    TokenType::KW_CONST},
@@ -156,6 +157,7 @@ inline std::string tokenTypeToString(TokenType type) {
         case TokenType::KW_DICT: return "dict";
         case TokenType::KW_MAP: return "map";
         case TokenType::KW_VECTOR: return "vector";
+        case TokenType::KW_ARRAY: return "array";
         case TokenType::KW_LET: return "let";
         case TokenType::KW_REF: return "ref";
         case TokenType::KW_CONST: return "const";

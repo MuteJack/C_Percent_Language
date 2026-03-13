@@ -351,6 +351,39 @@ print(add(3, 4));    // 7
 
 - 재귀 호출 지원
 - `void` 반환 타입 사용 가능
+- 매개변수/반환 타입에 배열, vector, dict, map 사용 가능
+
+### 복합 타입 매개변수
+
+```
+// 배열 매개변수 (두 가지 표기 모두 가능)
+void printArr(int[] arr) { println(arr); }
+void printArr2(array<int> arr) { println(arr); }
+
+// 다차원 배열
+void printMatrix(int[][] m) { println(m); }
+
+// vector / dict / map 매개변수
+void processVec(vector<int> v) { println(v); }
+void processDict(dict d) { println(d); }
+void processMap(map<string,int> m) { println(m); }
+```
+
+### 복합 타입 반환
+
+```
+int[] getNumbers() {
+    int r[] = [1, 2, 3];
+    return r;
+}
+
+array<int> getNumbers2() {   // 동일
+    int r[] = [1, 2, 3];
+    return r;
+}
+```
+
+`int[]`과 `array<int>`는 같은 타입이다. `array<T>`는 `T[]`의 제네릭 스타일 별칭이다.
 
 ```
 int factorial(int n) {

@@ -55,8 +55,47 @@ bool Parser::isTypeKeyword(TokenType type) const {
 }
 
 std::string Parser::parseType() {
+    // dict
+    if (check(TokenType::KW_DICT)) {
+        advance();
+        return "dict";
+    }
+    // vector<ElemType>
+    if (check(TokenType::KW_VECTOR)) {
+        advance();
+        expect(TokenType::LT, "Expected '<' after 'vector'");
+        std::string elemType = parseType();
+        expect(TokenType::GT, "Expected '>' after vector element type");
+        return "vector<" + elemType + ">";
+    }
+    // map<KeyType, ValueType>
+    if (check(TokenType::KW_MAP)) {
+        advance();
+        expect(TokenType::LT, "Expected '<' after 'map'");
+        std::string keyType = parseType();
+        expect(TokenType::COMMA, "Expected ',' in map type");
+        std::string valType = parseType();
+        expect(TokenType::GT, "Expected '>' after map value type");
+        return "map<" + keyType + "," + valType + ">";
+    }
+    // array<ElemType> → "ElemType[]"
+    if (check(TokenType::KW_ARRAY)) {
+        advance();
+        expect(TokenType::LT, "Expected '<' after 'array'");
+        std::string elemType = parseType();
+        expect(TokenType::GT, "Expected '>' after array element type");
+        return elemType + "[]";
+    }
+    // Scalar type
     Token tok = advance();
-    return tok.value;
+    std::string type = tok.value;
+    // Array suffix: type[] or type[][]...
+    while (check(TokenType::LBRACKET) && peek().type == TokenType::RBRACKET) {
+        advance(); // [
+        advance(); // ]
+        type += "[]";
+    }
+    return type;
 }
 
 // ============== Parsing ==============
@@ -166,6 +205,22 @@ StmtPtr Parser::parseStatement() {
     if (check(TokenType::KW_VECTOR)) {
         auto s = parseVectorDecl();
         if (qRef) s->varType += "@";
+        applyQualifiers(s);
+        return s;
+    }
+
+    // Array generic declaration: array<Type> name = [...];  (alias for Type[] syntax)
+    if (check(TokenType::KW_ARRAY)) {
+        std::string type = parseType(); // returns "ElemType[]"
+        if (qRef) type += "@";
+        std::string name = expect(TokenType::IDENTIFIER, "Expected identifier after array type").value;
+        if (check(TokenType::LPAREN)) {
+            if (hasQualifier) {
+                error("Qualifiers not allowed on function declarations at line " + std::to_string(current().line));
+            }
+            return parseFuncDecl(type, name);
+        }
+        auto s = parseVarDecl(type);
         applyQualifiers(s);
         return s;
     }
@@ -451,7 +506,12 @@ StmtPtr Parser::parseForStmt() {
     // 4) for(init; cond; incr) — C-style
 
     // Check for ForEach: type ident ':'  or  ident ':'
-    if (isTypeKeyword(current().type)) {
+    auto isTypeStart = [&]() {
+        return isTypeKeyword(current().type) ||
+               check(TokenType::KW_DICT) || check(TokenType::KW_VECTOR) ||
+               check(TokenType::KW_MAP) || check(TokenType::KW_ARRAY);
+    };
+    if (isTypeStart()) {
         // Could be ForEach with type OR C-style with type decl init
         // Look ahead: type ident ':' → ForEach, type ident '=' or ';' → C-style
         size_t saved = pos_;

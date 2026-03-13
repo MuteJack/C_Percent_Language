@@ -81,6 +81,8 @@ C/C++에서는 `<string>`, `<algorithm>`, `<cctype>` 등에 분산되어 있는 
 - `bigint`: 항상 임의 정밀도 정수
 - `for(n) { ... }`: n번 반복 (카운터 변수 불필요)
 - `for(0 <= i < 10) { ... }`: 연쇄 비교 기반 범위 반복
+- `array<T>`: `T[]`의 제네릭 스타일 별칭 (예: `array<int>` = `int[]`)
 - `vector<T>`: C++ `std::vector`와 유사한 동적 배열 (메서드: `push`, `pop`, `insert`, `erase`, `clear`, `is_empty`, `front`, `back`)
 - `dict`: 키-값 쌍 (타입 자유)
 - `map<K, V>`: 타입이 고정된 키-값 쌍
+- 함수 매개변수/반환 타입에 복합 타입 사용 가능: `void f(int[] arr)`, `void f(vector<int> v)`, `int[] getArr()`

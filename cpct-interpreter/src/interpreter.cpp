@@ -2988,7 +2988,7 @@ CpctValue Interpreter::callFunction(const std::string& name, const std::vector<C
                 throw RuntimeError("Parameter '" + func.params[i].name +
                     "' is not a let parameter, cannot pass 'let variable' at line " + std::to_string(line));
             }
-            funcEnv.define(func.params[i].name, args[i]);
+            funcEnv.define(func.params[i].name, args[i], func.params[i].type);
         }
     }
 

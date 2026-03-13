@@ -1,0 +1,79 @@
+// === Array/Vector parameter type test ===
+
+// 1. int[] parameter (bracket syntax)
+void printIntArr(int[] arr) {
+    println("int[] param:", arr);
+}
+
+int a[] = [10, 20, 30];
+printIntArr(a);
+
+// 2. array<int> parameter (generic syntax)
+void sumArray(array<int> arr) {
+    int total = 0;
+    for (int x : arr) {
+        total += x;
+    }
+    println("sum:", total);
+}
+
+sumArray(a);
+
+// 3. vector<int> parameter
+void printVec(vector<int> v) {
+    println("vector param:", v);
+}
+
+vector<int> v = [1, 2, 3, 4, 5];
+printVec(v);
+
+// 4. string[] parameter
+void printNames(string[] names) {
+    for (name : names) {
+        println("  -", name);
+    }
+}
+
+string names[] = ["alice", "bob", "charlie"];
+printNames(names);
+
+// 5. array<string> parameter (generic)
+void countNames(array<string> names) {
+    println("count:", len(names));
+}
+
+countNames(names);
+
+// 6. dict parameter
+void printDict(dict d) {
+    println("dict param:", d);
+}
+
+dict scores = {"alice": 95, "bob": 87};
+printDict(scores);
+
+// 7. map<string, int> parameter
+void printMap(map<string,int> m) {
+    println("map param:", m);
+}
+
+map<string, int> grades = {"math": 90, "eng": 85};
+printMap(grades);
+
+// 8. array<int> variable declaration (new syntax)
+array<int> b = [100, 200, 300];
+println("array<int> decl:", b);
+
+// 9. Return array type function
+int[] getArr() {
+    int r[] = [7, 8, 9];
+    return r;
+}
+println("returned:", getArr());
+
+// 10. array<int> return type
+array<int> getArr2() {
+    int r[] = [4, 5, 6];
+    return r;
+}
+println("returned2:", getArr2());
