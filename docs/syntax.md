@@ -290,6 +290,54 @@ int factorial(int n) {
 }
 ```
 
+## 참조 (Reference)
+
+`@` 기호를 사용하여 변수의 별칭(alias)을 만든다.
+
+### 참조 변수
+
+```
+int x = 10;
+int@ ref = x;       // ref는 x의 별칭
+ref = 20;
+println(x);          // 20 (x가 변경됨)
+```
+
+- 참조는 반드시 초기화 필요 (`int@ ref;` → 에러)
+- 초기화자는 변수여야 함 (`int@ ref = 5;` → 에러)
+- 대입은 타겟에 write-through (재바인딩 불가)
+- 모든 타입 지원 (`int@`, `float@`, `string@`, `vector<int>@` 등)
+
+### 함수 참조 전달
+
+```
+void swap(int@ a, int@ b) {
+    int temp = a;
+    a = b;
+    b = temp;
+}
+
+int a = 1;
+int b = 2;
+swap(@a, @b);        // 호출부에서 @로 명시
+println(a, b);       // 2 1
+```
+
+- 함수 매개변수: `타입@ 이름`으로 선언
+- 호출 시: `@변수`로 전달 (값 전달과 명확히 구분)
+- `@` 없이 ref 매개변수에 전달 → 에러
+- 비-ref 매개변수에 `@` 전달 → 에러
+
+### 참조의 참조
+
+```
+int x = 10;
+int@ ref = x;
+int@ ref2 = ref;     // ref2도 x를 가리킴
+ref2 = 99;
+println(x);          // 99
+```
+
 ## 배열
 
 ```

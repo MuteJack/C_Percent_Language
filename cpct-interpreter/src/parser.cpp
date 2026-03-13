@@ -78,19 +78,32 @@ StmtPtr Parser::parseStatement() {
         }
 
         std::string type = parseType();
+
+        // Reference type: type@ name = var;
+        if (check(TokenType::AT)) {
+            advance(); // consume @
+            type += "@";
+        }
+
         std::string name = expect(TokenType::IDENTIFIER, "Expected identifier after type").value;
 
-        // Function declaration
+        // Function declaration (not allowed with ref type qualifier)
         if (check(TokenType::LPAREN)) {
+            if (!type.empty() && type.back() == '@') {
+                error("Function return type cannot be a reference type at line " + std::to_string(current().line));
+            }
             return parseFuncDecl(type, name);
         }
 
         // Array declaration: type name[...][...] ...
         if (check(TokenType::LBRACKET)) {
+            if (!type.empty() && type.back() == '@') {
+                error("Array type cannot be a reference type at line " + std::to_string(current().line));
+            }
             return parseArrayDecl(type, name);
         }
 
-        // Variable declaration
+        // Variable declaration (may be reference)
         return parseVarDecl(type);
     }
 
@@ -188,11 +201,18 @@ StmtPtr Parser::parseDictDecl() {
     int line = current().line;
     advance(); // consume 'dict'
 
+    // Reference type: dict@ name = var;
+    bool isRef = false;
+    if (check(TokenType::AT)) {
+        advance();
+        isRef = true;
+    }
+
     // Variable name
     std::string name = expect(TokenType::IDENTIFIER, "Expected dict variable name").value;
 
-    // Untyped dict — type string is just "dict"
-    std::string type = "dict";
+    // Untyped dict — type string is just "dict" or "dict@"
+    std::string type = isRef ? "dict@" : "dict";
 
     ExprPtr init = nullptr;
     if (match(TokenType::ASSIGN)) {
@@ -221,11 +241,18 @@ StmtPtr Parser::parseMapDecl() {
     std::string valueType = advance().value;
     expect(TokenType::GT, "Expected '>' after value type");
 
+    // Reference type: map<K,V>@ name = var;
+    bool isRef = false;
+    if (check(TokenType::AT)) {
+        advance();
+        isRef = true;
+    }
+
     // Variable name
     std::string name = expect(TokenType::IDENTIFIER, "Expected map variable name").value;
 
-    // Construct type string: "map<string,int>"
-    std::string type = "map<" + keyType + "," + valueType + ">";
+    // Construct type string: "map<string,int>" or "map<string,int>@"
+    std::string type = "map<" + keyType + "," + valueType + ">" + (isRef ? "@" : "");
 
     ExprPtr init = nullptr;
     if (match(TokenType::ASSIGN)) {
@@ -248,11 +275,18 @@ StmtPtr Parser::parseVectorDecl() {
     std::string elemType = advance().value;
     expect(TokenType::GT, "Expected '>' after element type");
 
+    // Reference type: vector<int>@ name = var;
+    bool isRef = false;
+    if (check(TokenType::AT)) {
+        advance();
+        isRef = true;
+    }
+
     // Variable name
     std::string name = expect(TokenType::IDENTIFIER, "Expected vector variable name").value;
 
-    // Construct type string: "vector<int>"
-    std::string type = "vector<" + elemType + ">";
+    // Construct type string: "vector<int>" or "vector<int>@"
+    std::string type = "vector<" + elemType + ">" + (isRef ? "@" : "");
 
     ExprPtr init = nullptr;
     if (match(TokenType::ASSIGN)) {
@@ -295,8 +329,13 @@ StmtPtr Parser::parseFuncDecl(const std::string& retType, const std::string& nam
     if (!check(TokenType::RPAREN)) {
         do {
             std::string paramType = parseType();
+            bool paramIsRef = false;
+            if (check(TokenType::AT)) {
+                advance(); // consume @
+                paramIsRef = true;
+            }
             std::string paramName = expect(TokenType::IDENTIFIER, "Expected parameter name").value;
-            params.push_back({paramType, paramName});
+            params.push_back({paramType, paramName, paramIsRef});
         } while (match(TokenType::COMMA));
     }
     expect(TokenType::RPAREN, "Expected ')' after parameters");
@@ -822,6 +861,14 @@ ExprPtr Parser::parseUnary() {
         int line = current().line;
         auto operand = parseUnary();
         return makeUnaryOp(op, std::move(operand), line);
+    }
+
+    // Reference argument: @variable (pass-by-reference marker at call site)
+    if (check(TokenType::AT)) {
+        int line = current().line;
+        advance(); // consume @
+        std::string varName = expect(TokenType::IDENTIFIER, "Expected variable name after '@'").value;
+        return makeRefArg(varName, line);
     }
 
     // Pre-increment / pre-decrement

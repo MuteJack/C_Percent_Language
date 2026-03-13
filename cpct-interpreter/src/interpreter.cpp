@@ -343,7 +343,25 @@ void Environment::define(const std::string& name, CpctValue value, const std::st
     }
 }
 
+void Environment::defineRef(const std::string& name, Environment* targetEnv, const std::string& targetName, const std::string& type) {
+    // Flatten ref chains: if target is itself a ref, follow to the final target
+    auto refIt = targetEnv->refs_.find(targetName);
+    if (refIt != targetEnv->refs_.end()) {
+        refs_[name] = refIt->second; // point directly to the final target
+    } else {
+        refs_[name] = {targetEnv, targetName};
+    }
+    if (!type.empty()) {
+        types_[name] = type;
+    }
+}
+
 CpctValue& Environment::get(const std::string& name) {
+    // Check refs first in current scope
+    auto refIt = refs_.find(name);
+    if (refIt != refs_.end()) {
+        return refIt->second.first->get(refIt->second.second);
+    }
     auto it = vars_.find(name);
     if (it != vars_.end()) return it->second;
     if (parent_) return parent_->get(name);
@@ -351,6 +369,12 @@ CpctValue& Environment::get(const std::string& name) {
 }
 
 void Environment::set(const std::string& name, CpctValue value) {
+    // Check refs first in current scope
+    auto refIt = refs_.find(name);
+    if (refIt != refs_.end()) {
+        refIt->second.first->set(refIt->second.second, std::move(value));
+        return;
+    }
     auto it = vars_.find(name);
     if (it != vars_.end()) {
         it->second = std::move(value);
@@ -364,6 +388,7 @@ void Environment::set(const std::string& name, CpctValue value) {
 }
 
 bool Environment::has(const std::string& name) const {
+    if (refs_.count(name)) return true;
     if (vars_.count(name)) return true;
     if (parent_) return parent_->has(name);
     return false;
@@ -372,8 +397,30 @@ bool Environment::has(const std::string& name) const {
 std::string Environment::getType(const std::string& name) const {
     auto it = types_.find(name);
     if (it != types_.end()) return it->second;
+    // Check refs — follow to target's type
+    auto refIt = refs_.find(name);
+    if (refIt != refs_.end()) {
+        return refIt->second.first->getType(refIt->second.second);
+    }
     if (parent_) return parent_->getType(name);
     return "";
+}
+
+bool Environment::isRef(const std::string& name) const {
+    if (refs_.count(name)) return true;
+    if (parent_) return parent_->isRef(name);
+    return false;
+}
+
+Environment* Environment::findOwner(const std::string& name) {
+    // If it's a ref, return the owner of the final target
+    auto refIt = refs_.find(name);
+    if (refIt != refs_.end()) {
+        return refIt->second.first->findOwner(refIt->second.second);
+    }
+    if (vars_.count(name)) return this;
+    if (parent_) return parent_->findOwner(name);
+    return nullptr;
 }
 
 // ============== Interpreter (statement execution engine) ==============
@@ -409,6 +456,24 @@ void Interpreter::execStmt(const Stmt* stmt) {
 // Variable declaration execution: dict / map / vector / array (1D→TypedArray, multi-dim) / scalar
 // Coerces initialization values based on type and performs range checking (checkIntRange).
 void Interpreter::execVarDecl(const Stmt* stmt) {
+    // Reference variable declaration: type@ name = var;
+    if (isReferenceType(stmt->varType)) {
+        std::string baseType = stripRefQualifier(stmt->varType);
+        if (!stmt->initExpr) {
+            throw RuntimeError("Reference variable '" + stmt->varName + "' must be initialized at line " + std::to_string(stmt->line));
+        }
+        if (stmt->initExpr->kind != ExprKind::Identifier) {
+            throw RuntimeError("Reference variable '" + stmt->varName + "' must be initialized with a variable, not a literal or expression at line " + std::to_string(stmt->line));
+        }
+        std::string targetName = stmt->initExpr->name;
+        Environment* ownerEnv = currentEnv_->findOwner(targetName);
+        if (!ownerEnv) {
+            throw RuntimeError("Undefined variable '" + targetName + "' in reference initialization at line " + std::to_string(stmt->line));
+        }
+        currentEnv_->defineRef(stmt->varName, ownerEnv, targetName, baseType);
+        return;
+    }
+
     // dict declaration (untyped — any key/value allowed)
     if (isDictType(stmt->varType)) {
         CpctDict dict;
@@ -1115,6 +1180,10 @@ CpctValue Interpreter::eval(const Expr* expr) {
             }
             return CpctValue(true);
         }
+        case ExprKind::RefArg:
+            // RefArg (@variable) should only appear as function call arguments.
+            // If evaluated directly, it's an error.
+            throw RuntimeError("'@" + expr->name + "' can only be used as a function argument for pass-by-reference at line " + std::to_string(expr->line));
     }
     throw RuntimeError("Unknown expression kind");
 }
@@ -1990,9 +2059,14 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
 
     std::vector<CpctValue> args;
     for (auto& arg : expr->args) {
-        args.push_back(eval(arg.get()));
+        if (arg->kind == ExprKind::RefArg) {
+            // Don't evaluate @var — just push a placeholder; callFunction handles it via argExprs
+            args.push_back(CpctValue(int64_t(0))); // placeholder
+        } else {
+            args.push_back(eval(arg.get()));
+        }
     }
-    return callFunction(expr->funcName, args, expr->line);
+    return callFunction(expr->funcName, args, &expr->args, expr->line);
 }
 
 CpctValue Interpreter::evalArrayAccess(const Expr* expr) {
@@ -2396,7 +2470,8 @@ CpctValue Interpreter::evalArraySlice(const Expr* expr) {
 // Built-in functions (len, shape, keys, values, has, divmod, type casts) and user-defined function calls.
 // User function calls create a new Environment on top of the global scope,
 // and receive the return value via ReturnSignal exception.
-CpctValue Interpreter::callFunction(const std::string& name, const std::vector<CpctValue>& args, int line) {
+CpctValue Interpreter::callFunction(const std::string& name, const std::vector<CpctValue>& args,
+                                    const std::vector<ExprPtr>* argExprs, int line) {
     // Built-in functions
     if (name == "len") {
         if (args.size() != 1) throw RuntimeError("len() takes exactly 1 argument");
@@ -2737,7 +2812,27 @@ CpctValue Interpreter::callFunction(const std::string& name, const std::vector<C
     // Create function scope
     Environment funcEnv(&globalEnv_);
     for (size_t i = 0; i < func.params.size(); i++) {
-        funcEnv.define(func.params[i].name, args[i]);
+        if (func.params[i].isRef) {
+            // Reference parameter: bind to caller's variable
+            if (!argExprs || i >= argExprs->size() || (*argExprs)[i]->kind != ExprKind::RefArg) {
+                throw RuntimeError("Reference parameter '" + func.params[i].name +
+                    "' requires @variable argument at line " + std::to_string(line));
+            }
+            std::string targetName = (*argExprs)[i]->name;
+            Environment* ownerEnv = currentEnv_->findOwner(targetName);
+            if (!ownerEnv) {
+                throw RuntimeError("Undefined variable '" + targetName +
+                    "' in reference argument at line " + std::to_string(line));
+            }
+            funcEnv.defineRef(func.params[i].name, ownerEnv, targetName, func.params[i].type);
+        } else {
+            // Value parameter: check that caller didn't pass @var to a non-ref param
+            if (argExprs && i < argExprs->size() && (*argExprs)[i]->kind == ExprKind::RefArg) {
+                throw RuntimeError("Parameter '" + func.params[i].name +
+                    "' is not a reference parameter, cannot pass @variable at line " + std::to_string(line));
+            }
+            funcEnv.define(func.params[i].name, args[i]);
+        }
     }
 
     Environment* prev = currentEnv_;

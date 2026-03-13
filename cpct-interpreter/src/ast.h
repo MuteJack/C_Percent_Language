@@ -33,6 +33,7 @@ enum class ExprKind {
     DictLiteral,
     ChainedComparison,
     Ternary,
+    RefArg,  // @variable — pass-by-reference argument marker
 };
 
 // Expression node — all ExprKinds share a single struct (tagged union style).
@@ -258,6 +259,14 @@ inline ExprPtr makeChainedComparison(std::vector<ExprPtr> operands, std::vector<
     return e;
 }
 
+inline ExprPtr makeRefArg(const std::string& varName, int line) {
+    auto e = std::make_unique<Expr>();
+    e->kind = ExprKind::RefArg;
+    e->name = varName;
+    e->line = line;
+    return e;
+}
+
 // ============== Statements ==============
 
 enum class StmtKind {
@@ -269,6 +278,7 @@ enum class StmtKind {
 struct FuncParam {
     std::string type;
     std::string name;
+    bool isRef = false;
 };
 
 // Statement node — like Expr, active fields depend on StmtKind.

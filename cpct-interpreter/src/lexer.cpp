@@ -374,6 +374,9 @@ std::vector<Token> Lexer::tokenize() {
             case '?':
                 tokens.push_back(makeToken(TokenType::QUESTION, "?"));
                 continue;
+            case '@':
+                tokens.push_back(makeToken(TokenType::AT, "@"));
+                continue;
         }
 
         throw std::runtime_error(

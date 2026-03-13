@@ -35,6 +35,7 @@ enum class TokenType {
     BIT_AND_ASSIGN, BIT_OR_ASSIGN, BIT_XOR_ASSIGN, LSHIFT_ASSIGN, RSHIFT_ASSIGN,
     INCREMENT, DECREMENT,
     QUESTION,
+    AT,        // @
 
     // Delimiters
     LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET,
@@ -183,6 +184,7 @@ inline std::string tokenTypeToString(TokenType type) {
         case TokenType::LSHIFT_ASSIGN: return "<<=";
         case TokenType::RSHIFT_ASSIGN: return ">>=";
         case TokenType::QUESTION: return "?";
+        case TokenType::AT: return "@";
         case TokenType::INCREMENT: return "++";
         case TokenType::DECREMENT: return "--";
         case TokenType::LPAREN: return "(";

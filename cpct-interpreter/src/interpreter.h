@@ -373,6 +373,17 @@ inline ArrayElemType getArrayElemType(const std::string& baseType) {
     return ArrayElemType::Int64;
 }
 
+// Checks if a type string ends with '@' (reference type).
+inline bool isReferenceType(const std::string& typeName) {
+    return !typeName.empty() && typeName.back() == '@';
+}
+
+// Strips the trailing '@' from a reference type string to get the base type.
+inline std::string stripRefQualifier(const std::string& typeName) {
+    if (isReferenceType(typeName)) return typeName.substr(0, typeName.size() - 1);
+    return typeName;
+}
+
 // Checks if the element type can use TypedArray.
 // string, intbig, bigint cannot use TypedArray since they are not fixed-size elements.
 inline bool supportsTypedArray(const std::string& baseType) {
@@ -406,16 +417,24 @@ public:
     explicit Environment(Environment* parent = nullptr);
     // Declares a new variable in the current scope (overwrites if already exists).
     void define(const std::string& name, CpctValue value, const std::string& type = "");
+    // Declares a reference binding: name becomes an alias for targetName in targetEnv.
+    void defineRef(const std::string& name, Environment* targetEnv, const std::string& targetName, const std::string& type = "");
     // Walks the chain to find the variable and returns a reference. Throws RuntimeError if not found.
     CpctValue& get(const std::string& name);
     // Walks the chain to find the variable and updates its value. Throws RuntimeError if not found.
     void set(const std::string& name, CpctValue value);
     bool has(const std::string& name) const;
     std::string getType(const std::string& name) const;
+    // Returns true if name is a reference binding in this scope.
+    bool isRef(const std::string& name) const;
+    // Returns the Environment that owns the variable (for ref binding at call sites).
+    Environment* findOwner(const std::string& name);
 
 private:
     std::unordered_map<std::string, CpctValue> vars_;
     std::unordered_map<std::string, std::string> types_; // declared types (used for type coercion checks)
+    // Reference bindings: name → (target Environment, target variable name)
+    std::unordered_map<std::string, std::pair<Environment*, std::string>> refs_;
     Environment* parent_; // outer scope (nullptr if none)
 };
 
@@ -484,7 +503,9 @@ private:
     // Evaluates index expressions in a multi-dimensional array and returns a reference to the element.
     CpctValue& resolveArrayElement(CpctValue& arr, const Expr* indexExpr, int line);
     // Looks up name in the function table, calls it with args, and returns the result.
-    CpctValue callFunction(const std::string& name, const std::vector<CpctValue>& args, int line);
+    // argExprs are the raw AST expression nodes (needed to detect @ref arguments).
+    CpctValue callFunction(const std::string& name, const std::vector<CpctValue>& args,
+                           const std::vector<ExprPtr>* argExprs, int line);
     // Throws RuntimeError if val is outside typeName's valid range (intbig promotes to BigInt).
     CpctValue checkIntRange(const std::string& typeName, CpctValue val, int line);
     // Adjusts val's precision to match float32/float64 type and returns it.
