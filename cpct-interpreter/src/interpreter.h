@@ -463,8 +463,10 @@ struct FuncDef {
 class Interpreter {
 public:
     Interpreter();
-    // Executes the parsed AST top-level statements in order.
-    void run(const std::vector<StmtPtr>& program);
+    // Executes the program. Returns exit code (0 = success).
+    // If main() exists: registers functions, calls main(), returns its exit code.
+    // If no main(): runs all top-level statements in order (script mode), returns 0.
+    int run(const std::vector<StmtPtr>& program);
     // Recursively evaluates an expression node and returns a CpctValue.
     CpctValue eval(const Expr* expr);
 

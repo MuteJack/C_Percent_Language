@@ -1,4 +1,4 @@
-# rC% 기본 문법
+# C% 기본 문법
 
 ## 주석
 
@@ -87,16 +87,16 @@ println(y);                   // 42
 
 ### 한정자 조합 규칙
 
-| 조합 | 허용 여부 |
-|------|-----------|
-| `const ref` | O — 읽기 전용 참조 |
-| `const static` / `static const` | O — 정적 상수 |
-| `let` + `ref` | X |
-| `static` + `ref` | X |
-| `static` + `let` | X |
-| `heap` + `ref` | X |
-| `heap` + `let` | X |
-| `static` + `heap` | X |
+| 조합                                | 허용 여부           |
+| ----------------------------------- | ------------------- |
+| `const ref`                       | O — 읽기 전용 참조 |
+| `const static` / `static const` | O — 정적 상수      |
+| `let` + `ref`                   | X                   |
+| `static` + `ref`                | X                   |
+| `static` + `let`                | X                   |
+| `heap` + `ref`                  | X                   |
+| `heap` + `let`                  | X                   |
+| `static` + `heap`               | X                   |
 
 ## 출력
 
@@ -353,6 +353,28 @@ print(add(3, 4));    // 7
 - `void` 반환 타입 사용 가능
 - 매개변수/반환 타입에 배열, vector, dict, map 사용 가능
 
+### main() — 진입점
+
+`main()` 함수가 있으면 프로그램의 진입점으로 사용된다. 없으면 스크립트 모드로 top-level 문을 순서대로 실행한다.
+
+```
+// 진입점 모드: main()에서 시작, top-level 실행문 무시
+int main() {
+    println("Hello!");
+    return 0;
+}
+
+// void도 가능 (종료 코드 불필요 시)
+void main() {
+    println("Hello!");
+}
+```
+
+- 반환 타입: `int` 또는 `void`만 허용
+- `int main()`의 반환값은 프로그램 종료 코드로 사용
+- `int main()`에서 `return` 생략 시 자동으로 `0` 반환
+- `main()` 존재 시 top-level 실행문은 무시되고 함수 선언만 등록
+
 ### 복합 타입 매개변수
 
 ```
@@ -503,46 +525,46 @@ print(f"len = {len("hello")}");          // len = 5
 
 ## 내장 함수
 
-| 함수               | 설명                       | 예시                           |
-| ------------------ | -------------------------- | ------------------------------ |
-| `len(x)`         | 배열/문자열 길이           | `len("hello")` → `5`      |
-| `int(x)`         | 정수로 변환                | `int("42")` → `42`        |
-| `float(x)`       | 실수로 변환                | `float("3.14")` → `3.14`  |
-| `string(x)`      | 문자열로 변환              | `string(42)` → `"42"`     |
-| `bool(x)`        | 불리언으로 변환            | `bool(0)` → `false`       |
-| `type(x)`        | 타입 이름 반환             | `type(42)` → `"int"`      |
-| `size(x)`        | 바이트 크기 반환           | `size(42)` → `8`          |
-| `shape(x)`       | 배열 차원 크기 반환        | `shape(m)` → `[3, 4]`     |
-| `divmod(a, b)`   | 몫과 나머지 배열 반환      | `divmod(7, 3)` → `[2, 1]` |
-| `input()`        | 한 줄 입력                 | `string s = input();`        |
-| `keys(d)`        | dict 키 배열               | `keys(scores)`               |
-| `values(d)`      | dict 값 배열               | `values(scores)`             |
-| `has(d, k)`      | dict 키 존재 여부          | `has(scores, "alice")`       |
-| `remove(d, k)`   | dict 키 삭제               | `d.remove("alice")`          |
-| `v.push(x)`      | vector 끝에 원소 추가      | `v.push(42)`                 |
-| `v.pop()`        | vector 끝 원소 제거 (반환) | `int x = v.pop()`            |
-| `v.insert(i, x)` | vector i번째에 삽입        | `v.insert(0, 99)`            |
-| `v.erase(i)`     | vector i번째 원소 제거     | `v.erase(0)`                 |
-| `v.clear()`      | vector 전체 삭제           | `v.clear()`                  |
-| `v.is_empty()`   | vector 비었는지 확인       | `v.is_empty()` → `true`   |
-| `v.front()`      | vector 첫 번째 원소        | `v.front()`                  |
-| `v.back()`       | vector 마지막 원소         | `v.back()`                   |
-| `split(s, sep)`  | 문자열 분할 (배열 반환)    | `split("a-b", "-")` → `["a", "b"]` |
-| `join(sep, arr)` | 배열을 문자열로 결합       | `join("-", ["a", "b"])` → `"a-b"` |
-| `upper(s)`       | 대문자로 변환              | `upper("hello")` → `"HELLO"` |
-| `lower(s)`       | 소문자로 변환              | `lower("HELLO")` → `"hello"` |
-| `find(s, sub)`   | 부분문자열 위치 (-1=없음)  | `find("abc", "bc")` → `1`   |
-| `replace(s, o, n)` | 문자열 치환 (전체)       | `replace("ab", "a", "x")` → `"xb"` |
-| `trim(s)`        | 앞뒤 공백 제거             | `trim("  hi  ")` → `"hi"`   |
-| `substr(s, i, n)` | 부분문자열 추출           | `substr("abcd", 1, 2)` → `"bc"` |
-| `reverse(s)`     | 문자열 뒤집기              | `reverse("abc")` → `"cba"`  |
-| `is_contains(s, sub)` | 부분문자열 포함 여부  | `is_contains("hello", "ell")` → `true` |
-| `is_starts_with(s, p)` | 접두사 일치 여부     | `is_starts_with("hello", "he")` → `true` |
-| `is_ends_with(s, p)` | 접미사 일치 여부       | `is_ends_with("hello", "lo")` → `true` |
-| `is_digit(s)`    | 모든 문자가 숫자인지       | `is_digit("123")` → `true`  |
-| `is_alpha(s)`    | 모든 문자가 알파벳인지     | `is_alpha("abc")` → `true`  |
-| `is_upper(s)`    | 모든 문자가 대문자인지     | `is_upper("ABC")` → `true`  |
-| `is_lower(s)`    | 모든 문자가 소문자인지     | `is_lower("abc")` → `true`  |
+| 함수                     | 설명                       | 예시                                          |
+| ------------------------ | -------------------------- | --------------------------------------------- |
+| `len(x)`               | 배열/문자열 길이           | `len("hello")` → `5`                     |
+| `int(x)`               | 정수로 변환                | `int("42")` → `42`                       |
+| `float(x)`             | 실수로 변환                | `float("3.14")` → `3.14`                 |
+| `string(x)`            | 문자열로 변환              | `string(42)` → `"42"`                    |
+| `bool(x)`              | 불리언으로 변환            | `bool(0)` → `false`                      |
+| `type(x)`              | 타입 이름 반환             | `type(42)` → `"int"`                     |
+| `size(x)`              | 바이트 크기 반환           | `size(42)` → `8`                         |
+| `shape(x)`             | 배열 차원 크기 반환        | `shape(m)` → `[3, 4]`                    |
+| `divmod(a, b)`         | 몫과 나머지 배열 반환      | `divmod(7, 3)` → `[2, 1]`                |
+| `input()`              | 한 줄 입력                 | `string s = input();`                       |
+| `keys(d)`              | dict 키 배열               | `keys(scores)`                              |
+| `values(d)`            | dict 값 배열               | `values(scores)`                            |
+| `has(d, k)`            | dict 키 존재 여부          | `has(scores, "alice")`                      |
+| `remove(d, k)`         | dict 키 삭제               | `d.remove("alice")`                         |
+| `v.push(x)`            | vector 끝에 원소 추가      | `v.push(42)`                                |
+| `v.pop()`              | vector 끝 원소 제거 (반환) | `int x = v.pop()`                           |
+| `v.insert(i, x)`       | vector i번째에 삽입        | `v.insert(0, 99)`                           |
+| `v.erase(i)`           | vector i번째 원소 제거     | `v.erase(0)`                                |
+| `v.clear()`            | vector 전체 삭제           | `v.clear()`                                 |
+| `v.is_empty()`         | vector 비었는지 확인       | `v.is_empty()` → `true`                  |
+| `v.front()`            | vector 첫 번째 원소        | `v.front()`                                 |
+| `v.back()`             | vector 마지막 원소         | `v.back()`                                  |
+| `split(s, sep)`        | 문자열 분할 (배열 반환)    | `split("a-b", "-")` → `["a", "b"]`       |
+| `join(sep, arr)`       | 배열을 문자열로 결합       | `join("-", ["a", "b"])` → `"a-b"`        |
+| `upper(s)`             | 대문자로 변환              | `upper("hello")` → `"HELLO"`             |
+| `lower(s)`             | 소문자로 변환              | `lower("HELLO")` → `"hello"`             |
+| `find(s, sub)`         | 부분문자열 위치 (-1=없음)  | `find("abc", "bc")` → `1`                |
+| `replace(s, o, n)`     | 문자열 치환 (전체)         | `replace("ab", "a", "x")` → `"xb"`       |
+| `trim(s)`              | 앞뒤 공백 제거             | `trim("  hi  ")` → `"hi"`                |
+| `substr(s, i, n)`      | 부분문자열 추출            | `substr("abcd", 1, 2)` → `"bc"`          |
+| `reverse(s)`           | 문자열 뒤집기              | `reverse("abc")` → `"cba"`               |
+| `is_contains(s, sub)`  | 부분문자열 포함 여부       | `is_contains("hello", "ell")` → `true`   |
+| `is_starts_with(s, p)` | 접두사 일치 여부           | `is_starts_with("hello", "he")` → `true` |
+| `is_ends_with(s, p)`   | 접미사 일치 여부           | `is_ends_with("hello", "lo")` → `true`   |
+| `is_digit(s)`          | 모든 문자가 숫자인지       | `is_digit("123")` → `true`               |
+| `is_alpha(s)`          | 모든 문자가 알파벳인지     | `is_alpha("abc")` → `true`               |
+| `is_upper(s)`          | 모든 문자가 대문자인지     | `is_upper("ABC")` → `true`               |
+| `is_lower(s)`          | 모든 문자가 소문자인지     | `is_lower("abc")` → `true`               |
 
 ## 실행 방법
 

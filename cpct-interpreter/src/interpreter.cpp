@@ -466,9 +466,46 @@ bool Environment::isMoved(const std::string& name) const {
 
 Interpreter::Interpreter() : currentEnv_(&globalEnv_) {}
 
-void Interpreter::run(const std::vector<StmtPtr>& program) {
+int Interpreter::run(const std::vector<StmtPtr>& program) {
+    // Check if a main() function exists in the program
+    bool hasMain = false;
     for (auto& stmt : program) {
-        execStmt(stmt.get());
+        if (stmt->kind == StmtKind::FuncDecl && stmt->funcName == "main") {
+            hasMain = true;
+            break;
+        }
+    }
+
+    if (hasMain) {
+        // Main mode: register function declarations only, then call main()
+        for (auto& stmt : program) {
+            if (stmt->kind == StmtKind::FuncDecl) {
+                execFuncDecl(stmt.get());
+            }
+        }
+        // Validate main() signature
+        auto& mainFunc = functions_["main"];
+        if (mainFunc.returnType != "int" && mainFunc.returnType != "void") {
+            throw std::runtime_error("main() must return 'int' or 'void', got '" + mainFunc.returnType + "'");
+        }
+        if (!mainFunc.params.empty()) {
+            if (mainFunc.params.size() != 1 || mainFunc.params[0].type != "string[]") {
+                throw std::runtime_error("main() parameters must be empty or (string[] args)");
+            }
+        }
+        // Call main()
+        CpctValue result = callFunction("main", {}, nullptr, 0);
+        // Return exit code (int main → return value, void main → 0)
+        if (mainFunc.returnType == "int" && result.isInt()) {
+            return static_cast<int>(result.asInt());
+        }
+        return 0;
+    } else {
+        // Script mode: execute all top-level statements in order
+        for (auto& stmt : program) {
+            execStmt(stmt.get());
+        }
+        return 0;
     }
 }
 

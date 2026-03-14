@@ -1,0 +1,27 @@
+// Test: main() entry point
+
+// === int main() with other functions ===
+void greet(string name) {
+    println("Hello, " + name + "!");
+}
+
+int add(int a, int b) {
+    return a + b;
+}
+
+int main() {
+    println("=== main() entry point test ===");
+
+    // Call other functions
+    greet("C%");
+    int result = add(10, 20);
+    println("10 + 20 = " + string(result));
+
+    // Control flow works normally
+    for (int i = 0; i < 3; i++) {
+        println("i = " + string(i));
+    }
+
+    println("=== test passed ===");
+    return 0;
+}

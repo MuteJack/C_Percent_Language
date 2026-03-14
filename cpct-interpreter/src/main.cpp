@@ -20,7 +20,8 @@ static std::string readFile(const std::string& path) {
 }
 
 // Runs the source string through the lexer → parser → interpreter pipeline.
-static void runSource(const std::string& source, Interpreter& interp) {
+// Returns exit code from main() or 0 for script mode. Returns 1 on error.
+static int runSource(const std::string& source, Interpreter& interp) {
     try {
         Lexer lexer(source);
         auto tokens = lexer.tokenize();
@@ -28,9 +29,10 @@ static void runSource(const std::string& source, Interpreter& interp) {
         Parser parser(tokens);
         auto program = parser.parse();
 
-        interp.run(program);
+        return interp.run(program);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
     }
 }
 
@@ -72,6 +74,8 @@ static void repl() {
     std::cout << "Bye!" << std::endl;
 }
 
+
+
 // Runs in REPL mode with no arguments, or file execution mode when a file path is given.
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -82,7 +86,7 @@ int main(int argc, char* argv[]) {
         std::string source = readFile(filename);
 
         Interpreter interp;
-        runSource(source, interp);
+        return runSource(source, interp);
     }
 
     return 0;

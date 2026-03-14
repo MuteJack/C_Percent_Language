@@ -47,6 +47,7 @@
 | 기본 매개변수  | `int f(int x = 0)` | `def f(x=0)`    | **없음** | 미구현 |
 | 참조 전달 (ref) | `void f(int& x)`   | (뮤터블 객체)     | `void f(ref int x)` → `f(ref x)` | 구현완료 |
 | 복합 타입 매개변수 | `void f(int arr[])` | `def f(arr)` | `void f(int[] arr)` / `void f(array<int> arr)` | 구현완료 |
+| main() 진입점 | `int main()`       | `if __name__`  | `int main()` / `void main()` | 구현완료 |
 | 가변 인자      | `variadic`         | `*args`         | **없음** | 미구현 |
 | 람다/익명 함수 | `[](int x){...}`   | `lambda x: ...` | **없음** | 미구현 |
 
