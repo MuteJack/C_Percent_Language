@@ -466,6 +466,24 @@ bool Environment::isMoved(const std::string& name) const {
 
 Interpreter::Interpreter() : currentEnv_(&globalEnv_) {}
 
+IntTypeInfo Interpreter::getFastTypeInfo(const std::string& typeName) const {
+    if (typeName == "int8f")   return makeFastIntTypeInfo(platform_.fast8,  false, "int8f");
+    if (typeName == "int16f")  return makeFastIntTypeInfo(platform_.fast16, false, "int16f");
+    if (typeName == "int32f")  return makeFastIntTypeInfo(platform_.fast32, false, "int32f");
+    if (typeName == "uint8f")  return makeFastIntTypeInfo(platform_.fast8,  true,  "uint8f");
+    if (typeName == "uint16f") return makeFastIntTypeInfo(platform_.fast16, true,  "uint16f");
+    if (typeName == "uint32f") return makeFastIntTypeInfo(platform_.fast32, true,  "uint32f");
+    return getIntTypeInfo(typeName);
+}
+
+IntTypeInfo Interpreter::resolveIntTypeInfo(const std::string& typeName) const {
+    // int/uint are aliases for int16f/uint16f (fast types)
+    if (typeName == "int")  return makeFastIntTypeInfo(platform_.fast16, false, "int");
+    if (typeName == "uint") return makeFastIntTypeInfo(platform_.fast16, true,  "uint");
+    if (isFastIntType(typeName)) return getFastTypeInfo(typeName);
+    return getIntTypeInfo(typeName);
+}
+
 int Interpreter::run(const std::vector<StmtPtr>& program) {
     // Check if a main() function exists in the program
     bool hasMain = false;
@@ -2189,10 +2207,27 @@ CpctValue Interpreter::evalFunctionCall(const Expr* expr) {
         int64_t bytes = 0;
         if (!typeName.empty() && !isArrayType(typeName)) {
             if (typeName == "bool") bytes = 1;
-            else if (typeName == "int8" || typeName == "char") bytes = 1;
-            else if (typeName == "int16") bytes = 2;
-            else if (typeName == "int" || typeName == "int32" || typeName == "float32") bytes = 4;
-            else if (typeName == "int64" || typeName == "float64" || typeName == "float") bytes = 8;
+            else if (typeName == "int8" || typeName == "uint8" || typeName == "char") bytes = 1;
+            else if (typeName == "int16" || typeName == "uint16") bytes = 2;
+            else if (typeName == "int32" || typeName == "uint32" || typeName == "float32") bytes = 4;
+            else if (typeName == "int64" || typeName == "uint64" || typeName == "float64" || typeName == "float") bytes = 8;
+            else if (isFastIntType(typeName) || typeName == "int" || typeName == "uint") {
+                auto info = resolveIntTypeInfo(typeName);
+                if (info.isUint64Full) bytes = 8;
+                else if (isUnsignedType(typeName)) {
+                    uint64_t maxVal = static_cast<uint64_t>(info.maxVal);
+                    if (maxVal <= 0xFF) bytes = 1;
+                    else if (maxVal <= 0xFFFF) bytes = 2;
+                    else if (maxVal <= 0xFFFFFFFF) bytes = 4;
+                    else bytes = 8;
+                } else {
+                    int64_t maxVal = info.maxVal;
+                    if (maxVal <= 0x7F) bytes = 1;
+                    else if (maxVal <= 0x7FFF) bytes = 2;
+                    else if (maxVal <= 0x7FFFFFFFL) bytes = 4;
+                    else bytes = 8;
+                }
+            }
             else if (typeName == "intbig" || typeName == "bigint") {
                 bytes = val.isBigInt() ? static_cast<int64_t>(val.asBigInt().byteCount()) : 8;
             }
@@ -3046,12 +3081,14 @@ CpctValue Interpreter::callFunction(const std::string& name, const std::vector<C
 }
 
 // Checks the range of fixed-size integer types and applies C-style modular wrap-around on overflow.
+// Fast types (int8f~int32f, int, uint) throw a runtime error on overflow instead of wrapping.
 // uint64 uses a separate uint64_t storage path; intbig/bigint pass through without range limits.
 CpctValue Interpreter::checkIntRange(const std::string& typeName, CpctValue val, int line) {
     // intbig/bigint are dynamic BigInt types, no range checking needed
     if (isDynamicIntType(typeName)) return val;
 
-    auto& info = getIntTypeInfo(typeName);
+    auto info = resolveIntTypeInfo(typeName);
+    bool isFast = isFastIntType(typeName) || typeName == "int" || typeName == "uint";
 
     // Special handling for uint64: store as uint64_t natively
     if (info.isUint64Full) {
@@ -3059,17 +3096,22 @@ CpctValue Interpreter::checkIntRange(const std::string& typeName, CpctValue val,
         if (val.isUInt()) {
             uv = val.asUInt();
         } else if (val.isInt()) {
-            // Negative int wraps around: -1 → UINT64_MAX
+            if (isFast && val.asInt() < 0) {
+                throw RuntimeError("Integer overflow: negative value for unsigned fast type '" +
+                    typeName + "' at line " + std::to_string(line));
+            }
             uv = static_cast<uint64_t>(val.asInt());
         } else if (val.isBigInt()) {
             BigInt bv = val.asBigInt();
-            // Wrap into [0, UINT64_MAX] via modular reduction
+            if (isFast) {
+                throw RuntimeError("Integer overflow on fast type '" + typeName +
+                    "' at line " + std::to_string(line));
+            }
             BigInt range = BigInt("18446744073709551616"); // 2^64
             BigInt rem = bv % range;
             if (rem < BigInt(int64_t(0))) rem = rem + range;
             if (rem.fitsInt64()) uv = static_cast<uint64_t>(rem.toInt64());
             else {
-                // Value exceeds int64 but fits uint64 — extract from string
                 std::string s = rem.toString();
                 uv = std::stoull(s);
             }
@@ -3084,7 +3126,6 @@ CpctValue Interpreter::checkIntRange(const std::string& typeName, CpctValue val,
         return CpctValue(uv);
     }
 
-    // For other unsigned types (uint8~uint32), convert to uint64_t then range-check
     bool isUnsigned = isUnsignedType(typeName);
 
     // Convert to int64 for range checking
@@ -3093,11 +3134,13 @@ CpctValue Interpreter::checkIntRange(const std::string& typeName, CpctValue val,
         v = val.asInt();
     } else if (val.isUInt()) {
         uint64_t uv = val.asUInt();
-        // If value fits int64, use directly; otherwise wrap via BigInt
         if (uv <= static_cast<uint64_t>(INT64_MAX)) {
             v = static_cast<int64_t>(uv);
         } else {
-            // Large uint64 → BigInt path for wrapping
+            if (isFast) {
+                throw RuntimeError("Integer overflow on fast type '" + typeName +
+                    "' at line " + std::to_string(line));
+            }
             BigInt bv(uv);
             uint64_t range = static_cast<uint64_t>(info.maxVal) - static_cast<uint64_t>(info.minVal) + 1;
             BigInt rangeBI(static_cast<int64_t>(range));
@@ -3109,6 +3152,10 @@ CpctValue Interpreter::checkIntRange(const std::string& typeName, CpctValue val,
             return CpctValue(v);
         }
     } else if (val.isBigInt()) {
+        if (isFast) {
+            throw RuntimeError("Integer overflow on fast type '" + typeName +
+                "' at line " + std::to_string(line));
+        }
         BigInt bv = val.asBigInt();
         uint64_t range = static_cast<uint64_t>(info.maxVal) - static_cast<uint64_t>(info.minVal) + 1;
         BigInt rangeBI(static_cast<int64_t>(range));
@@ -3127,8 +3174,15 @@ CpctValue Interpreter::checkIntRange(const std::string& typeName, CpctValue val,
                           " at line " + std::to_string(line));
     }
 
-    // Wrap-around for sized integer types (like C/C++)
+    // Range check
     if (v < info.minVal || v > info.maxVal) {
+        if (isFast) {
+            throw RuntimeError("Integer overflow on fast type '" + typeName +
+                "': value " + std::to_string(v) + " out of range [" +
+                std::to_string(info.minVal) + ", " + std::to_string(info.maxVal) +
+                "] at line " + std::to_string(line));
+        }
+        // Wrap-around for fixed-size integer types (like C/C++)
         uint64_t range = static_cast<uint64_t>(info.maxVal) - static_cast<uint64_t>(info.minVal) + 1;
         int64_t offset = v - info.minVal;
         uint64_t uoffset = static_cast<uint64_t>(offset) % range;

@@ -25,7 +25,7 @@ char ch = 'A';
 int8 small = 127;
 ```
 
-타입 목록: `int`, `int8`, `int16`, `int32`, `int64`, `uint`, `uint8`, `uint16`, `uint32`, `uint64`, `intbig`, `bigint`, `float`, `float32`, `float64`, `char`, `string`, `bool`
+타입 목록: `int`, `int8`, `int16`, `int32`, `int64`, `int8f`, `int16f`, `int32f`, `uint`, `uint8`, `uint16`, `uint32`, `uint64`, `uint8f`, `uint16f`, `uint32f`, `intbig`, `bigint`, `float`, `float32`, `float64`, `char`, `string`, `bool`
 
 자세한 내용은 [datatype.md](datatype.md) 참고.
 
@@ -574,7 +574,12 @@ print(f"len = {len("hello")}");          // len = 5
 
 # 파일 실행
 ./cpct.exe 파일경로.cpc
+
+# 플랫폼 지정 (fast 타입 크기 변경)
+./cpct.exe --platform=avr 파일경로.cpc
 ```
+
+지원 플랫폼: `default`, `x86`, `x64-linux`, `x64-win`, `avr`, `arm32`, `arm64`, `esp32`
 
 ## 예제: FizzBuzz
 

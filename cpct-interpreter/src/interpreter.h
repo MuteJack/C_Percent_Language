@@ -229,6 +229,28 @@ inline bool safeCmpLessEqual(uint64_t a, int64_t b) {
 inline bool safeCmpLessEqual(int64_t a, int64_t b) { return a <= b; }
 inline bool safeCmpLessEqual(uint64_t a, uint64_t b) { return a <= b; }
 
+// Platform configuration for fast integer type sizes.
+// Each fast type has a configurable bit width that determines its range.
+struct PlatformConfig {
+    int fast8  = 8;   // bit width for int8f/uint8f
+    int fast16 = 64;  // bit width for int16f/uint16f (also int/uint)
+    int fast32 = 64;  // bit width for int32f/uint32f
+    std::string name = "default";
+};
+
+// Built-in platform presets
+inline PlatformConfig getPlatformPreset(const std::string& name) {
+    if (name == "x86")       return {  8, 32, 32, "x86"       };
+    if (name == "x64-linux") return {  8, 64, 64, "x64-linux" };
+    if (name == "x64-win")   return {  8, 32, 32, "x64-win"   };
+    if (name == "avr")       return {  8, 16, 32, "avr"       };
+    if (name == "arm32")     return { 32, 32, 32, "arm32"     };
+    if (name == "arm64")     return {  8, 64, 64, "arm64"     };
+    if (name == "esp32")     return {  8, 32, 32, "esp32"     };
+    // default = x64-linux style
+    return { 8, 64, 64, "default" };
+}
+
 // Valid range information per integer type.
 // uint64 is special-cased with isUint64Full flag since its max value doesn't fit in int64_t.
 struct IntTypeInfo {
@@ -237,6 +259,19 @@ struct IntTypeInfo {
     bool isUint64Full;   // true only for uint64 (max exceeds int64_t range)
     const char* name;
 };
+
+// Returns IntTypeInfo for a fast type based on the configured bit width.
+inline IntTypeInfo makeFastIntTypeInfo(int bits, bool isUnsigned, const char* name) {
+    if (isUnsigned) {
+        if (bits == 64) return { 0, 0, true, name };
+        uint64_t maxVal = (1ULL << bits) - 1;
+        return { 0, static_cast<int64_t>(maxVal), false, name };
+    } else {
+        int64_t minVal = -(1LL << (bits - 1));
+        int64_t maxVal =  (1LL << (bits - 1)) - 1;
+        return { minVal, maxVal, false, name };
+    }
+}
 
 // Returns IntTypeInfo for a given type name. Unknown types fall back to int (int32).
 // Each IntTypeInfo is created once as a static local variable and reused.
@@ -269,12 +304,18 @@ inline const IntTypeInfo& getIntTypeInfo(const std::string& typeName) {
 }
 
 // Checks if the type is a signed/unsigned fixed-size or BigInt-family integer type.
+inline bool isFastIntType(const std::string& typeName) {
+    return typeName == "int8f" || typeName == "int16f" || typeName == "int32f" ||
+           typeName == "uint8f" || typeName == "uint16f" || typeName == "uint32f";
+}
+
 inline bool isIntegerType(const std::string& typeName) {
     return typeName == "int" || typeName == "int8" || typeName == "int16" ||
            typeName == "int32" || typeName == "int64" ||
            typeName == "intbig" || typeName == "bigint" ||
            typeName == "uint" || typeName == "uint8" || typeName == "uint16" ||
-           typeName == "uint32" || typeName == "uint64";
+           typeName == "uint32" || typeName == "uint64" ||
+           isFastIntType(typeName);
 }
 
 // Checks if the type is a fixed-size integer that wraps on overflow (excludes intbig/bigint).
@@ -282,12 +323,14 @@ inline bool isSizedIntegerType(const std::string& typeName) {
     return typeName == "int" || typeName == "int8" || typeName == "int16" ||
            typeName == "int32" || typeName == "int64" ||
            typeName == "uint" || typeName == "uint8" || typeName == "uint16" ||
-           typeName == "uint32" || typeName == "uint64";
+           typeName == "uint32" || typeName == "uint64" ||
+           isFastIntType(typeName);
 }
 
 inline bool isUnsignedType(const std::string& typeName) {
     return typeName == "uint" || typeName == "uint8" || typeName == "uint16" ||
-           typeName == "uint32" || typeName == "uint64";
+           typeName == "uint32" || typeName == "uint64" ||
+           typeName == "uint8f" || typeName == "uint16f" || typeName == "uint32f";
 }
 
 // intbig / bigint: dynamic integer types that auto-promote to BigInt on overflow.
@@ -469,6 +512,13 @@ public:
     int run(const std::vector<StmtPtr>& program);
     // Recursively evaluates an expression node and returns a CpctValue.
     CpctValue eval(const Expr* expr);
+    // Sets the platform configuration for fast type sizes.
+    void setPlatform(const PlatformConfig& config) { platform_ = config; }
+    const PlatformConfig& getPlatform() const { return platform_; }
+    // Returns IntTypeInfo for fast types based on current platform config.
+    IntTypeInfo getFastTypeInfo(const std::string& typeName) const;
+    // Resolves type aliases (int → int16f, uint → uint16f) and returns IntTypeInfo.
+    IntTypeInfo resolveIntTypeInfo(const std::string& typeName) const;
 
 private:
     Environment globalEnv_;
@@ -476,6 +526,7 @@ private:
     std::unordered_map<std::string, FuncDef> functions_; // global function table
     std::unordered_map<std::string, std::string> staticKeys_; // "line:varName" → mangled name in globalEnv_
     int staticCounter_ = 0; // monotonic counter for unique static variable names
+    PlatformConfig platform_; // platform-specific fast type sizes
 
     // ---- Statement execution methods ----
     // Dispatches to the appropriate exec* function based on stmt's dynamic type.

@@ -63,6 +63,8 @@
 | static         | `static`                   | (없음)    | `static int count = 0;`    | 구현완료 |
 | let (소유권)   | `std::move(x)`             | (기본 동작) | `let int y = x;`          | 구현완료 |
 | heap           | `new int(42)`              | (없음)    | `heap int x = 42;`         | 구현완료 |
+| fast 정수      | `int_fast16_t`             | (없음)    | `int16f`, `int` = `int16f` 별칭 | 구현완료 |
+| --platform     | (없음)                     | (없음)    | `--platform=avr` 등 7개 프리셋  | 구현완료 |
 | 포인터         | `int* p = &x`              | (없음)    | **없음** | 미구현 |
 | 주소/역참조    | `&x`, `*p`               | (없음)    | **없음** | 미구현 |
 

@@ -44,9 +44,13 @@ bool Parser::isTypeKeyword(TokenType type) const {
            type == TokenType::KW_INT16 || type == TokenType::KW_INT32 ||
            type == TokenType::KW_INT64 || type == TokenType::KW_INTBIG ||
            type == TokenType::KW_BIGINT ||
+           type == TokenType::KW_INT8F || type == TokenType::KW_INT16F ||
+           type == TokenType::KW_INT32F ||
            type == TokenType::KW_UINT || type == TokenType::KW_UINT8 ||
            type == TokenType::KW_UINT16 || type == TokenType::KW_UINT32 ||
            type == TokenType::KW_UINT64 ||
+           type == TokenType::KW_UINT8F || type == TokenType::KW_UINT16F ||
+           type == TokenType::KW_UINT32F ||
            type == TokenType::KW_FLOAT ||
            type == TokenType::KW_FLOAT32 || type == TokenType::KW_FLOAT64 ||
            type == TokenType::KW_CHAR ||

@@ -16,7 +16,9 @@ enum class TokenType {
 
     // Types
     KW_INT, KW_INT8, KW_INT16, KW_INT32, KW_INT64, KW_INTBIG, KW_BIGINT,
+    KW_INT8F, KW_INT16F, KW_INT32F,
     KW_UINT, KW_UINT8, KW_UINT16, KW_UINT32, KW_UINT64,
+    KW_UINT8F, KW_UINT16F, KW_UINT32F,
     KW_FLOAT, KW_FLOAT32, KW_FLOAT64,
     KW_CHAR, KW_STRING, KW_BOOL, KW_VOID,
 
@@ -68,11 +70,17 @@ inline const std::unordered_map<std::string, TokenType>& getKeywords() {
         {"int64",    TokenType::KW_INT64},
         {"intbig",   TokenType::KW_INTBIG},
         {"bigint",   TokenType::KW_BIGINT},
+        {"int8f",    TokenType::KW_INT8F},
+        {"int16f",   TokenType::KW_INT16F},
+        {"int32f",   TokenType::KW_INT32F},
         {"uint",     TokenType::KW_UINT},
         {"uint8",    TokenType::KW_UINT8},
         {"uint16",   TokenType::KW_UINT16},
         {"uint32",   TokenType::KW_UINT32},
         {"uint64",   TokenType::KW_UINT64},
+        {"uint8f",   TokenType::KW_UINT8F},
+        {"uint16f",  TokenType::KW_UINT16F},
+        {"uint32f",  TokenType::KW_UINT32F},
         {"float",    TokenType::KW_FLOAT},
         {"float32",  TokenType::KW_FLOAT32},
         {"float64",  TokenType::KW_FLOAT64},
@@ -126,11 +134,17 @@ inline std::string tokenTypeToString(TokenType type) {
         case TokenType::KW_INT64: return "int64";
         case TokenType::KW_INTBIG: return "intbig";
         case TokenType::KW_BIGINT: return "bigint";
+        case TokenType::KW_INT8F: return "int8f";
+        case TokenType::KW_INT16F: return "int16f";
+        case TokenType::KW_INT32F: return "int32f";
         case TokenType::KW_UINT: return "uint";
         case TokenType::KW_UINT8: return "uint8";
         case TokenType::KW_UINT16: return "uint16";
         case TokenType::KW_UINT32: return "uint32";
         case TokenType::KW_UINT64: return "uint64";
+        case TokenType::KW_UINT8F: return "uint8f";
+        case TokenType::KW_UINT16F: return "uint16f";
+        case TokenType::KW_UINT32F: return "uint32f";
         case TokenType::KW_FLOAT: return "float";
         case TokenType::KW_FLOAT32: return "float32";
         case TokenType::KW_FLOAT64: return "float64";

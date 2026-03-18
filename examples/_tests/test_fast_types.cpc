@@ -1,0 +1,43 @@
+// Test: fast integer types and platform-dependent ranges
+
+// === fast type declarations ===
+int8f a = 100;
+int16f b = 1000;
+int32f c = 100000;
+
+println("=== fast type basic ===");
+println(f"{type(a)} a = {a}; ({size(a)}byte)");
+println(f"{type(b)} b = {b}; ({size(b)}byte)");
+println(f"{type(c)} c = {c}; ({size(c)}byte)");
+
+// === unsigned fast types ===
+uint8f ua = 200;
+uint16f ub = 50000;
+uint32f uc = 3000000000;
+
+println("=== unsigned fast types ===");
+println(f"{type(ua)} ua = {ua}; ({size(ua)}byte)");
+println(f"{type(ub)} ub = {ub}; ({size(ub)}byte)");
+println(f"{type(uc)} uc = {uc}; ({size(uc)}byte)");
+
+// === int is alias for int16f (platform dependent) ===
+println("=== int = int16f ===");
+int x = 100;
+println(f"{type(x)} x = {x}; ({size(x)}byte)");
+
+// === fixed type wraps, fast type would error ===
+println("=== int8 fixed wraps ===");
+int8 fixed = 127;
+println(f"{type(fixed)} fixed = {fixed}; ({size(fixed)}byte)");
+fixed++;
+println(f"{type(fixed)} fixed = {fixed}; ({size(fixed)}byte)");    // -128 (wrap-around)
+
+println("===== test passed =====");
+
+// int8f overflow would cause runtime error:
+int8f fast = 127;
+println(f"{type(fast)} fast = {fast}; ({size(fast)}byte)");
+println(f"fast++ will cause \"RunTime Error\" as:");
+fast++; // Error: Integer overflow on fast type 'int8f'
+
+
