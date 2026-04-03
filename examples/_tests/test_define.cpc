@@ -1,0 +1,54 @@
+// Test: #define and #undef preprocessor directives
+
+// === simple constant ===
+#define PI 3.14159
+#define MSG "hello, world"
+#define MAX_SIZE 100
+
+println("=== simple constant ===");
+println(f"PI = {PI}");
+println(f"MSG = {MSG}");
+println(f"MAX_SIZE = {MAX_SIZE}");
+
+// === macro function ===
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define SQUARE(x) ((x) * (x))
+#define ADD(a, b) ((a) + (b))
+
+println("=== macro function ===");
+println(f"MAX(3, 7) = {MAX(3, 7)}");
+println(f"MIN(3, 7) = {MIN(3, 7)}");
+println(f"SQUARE(5) = {SQUARE(5)}");
+println(f"ADD(10, 20) = {ADD(10, 20)}");
+
+// === nested macros ===
+#define WIDTH 10
+#define HEIGHT 20
+#define AREA (WIDTH * HEIGHT)
+
+println("=== nested macros ===");
+println(f"WIDTH = {WIDTH}");
+println(f"HEIGHT = {HEIGHT}");
+println(f"AREA = {AREA}");
+
+// === #undef ===
+#undef PI
+#define PI 3.14
+
+println("=== #undef and redefine ===");
+println(f"PI (redefined) = {PI}");
+
+// === string literals should not be substituted ===
+println("=== string literal protection ===");
+println("PI should not be replaced in this string: PI");
+
+// === nested macro function ===
+#define DOUBLE(x) ((x) * 2)
+#define QUADRUPLE(x) DOUBLE(DOUBLE(x))
+
+println("=== nested macro function ===");
+println(f"DOUBLE(5) = {DOUBLE(5)}");
+println(f"QUADRUPLE(3) = {QUADRUPLE(3)}");
+
+println("===== test passed =====");

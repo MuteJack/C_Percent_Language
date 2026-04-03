@@ -568,6 +568,55 @@ print(f"len = {len("hello")}");          // len = 5
 
 ## 실행 방법
 
+## 전처리기 (Preprocessor)
+
+소스 코드가 렉서에 전달되기 전에 텍스트 치환을 수행한다.
+
+### #define (상수)
+
+```
+#define PI 3.14159
+#define MAX_SIZE 100
+
+println(PI);          // 3.14159
+println(MAX_SIZE);    // 100
+```
+
+### #define (매크로 함수)
+
+```
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define SQUARE(x) ((x) * (x))
+
+println(MAX(3, 7));     // 7
+println(SQUARE(5));     // 25
+```
+
+### 매크로 중첩
+
+다른 매크로를 참조하는 매크로도 가능하다.
+
+```
+#define WIDTH 10
+#define HEIGHT 20
+#define AREA (WIDTH * HEIGHT)
+
+println(AREA);    // 200
+```
+
+### #undef
+
+정의된 매크로를 해제한다.
+
+```
+#define PI 3.14
+#undef PI
+#define PI 3.14159    // 재정의
+```
+
+- 문자열 리터럴 내부에서는 치환이 일어나지 않는다: `println("PI")` → `"PI"` 그대로 출력
+- 매크로 함수 인자에 괄호를 사용하는 것을 권장: `#define SQUARE(x) ((x) * (x))`
+
 ```bash
 # REPL 모드
 ./cpct.exe

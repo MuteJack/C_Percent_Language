@@ -16,6 +16,7 @@ C%는 C/C++ 문법을 기반으로 하되, 일부 동작이 다르다. C/C++ 경
 | static | `static int count = 0;` | `static int count = 0;` (동일 문법) |
 | heap | `int* p = new int(42)` | `heap int x = 42` (스코프 기반 자동 해제) |
 | fast 타입 | `int_fast16_t` | `int16f` (`int`은 `int16f`의 별칭) |
+| 전처리기 | `#define`, `#include`, `#ifdef` 등 | `#define`, `#undef` (텍스트 치환만) |
 | 포인터 | `int* p = &x` | **없음** (미구현) |
 | `null`/`nullptr` | 존재 | **없음** (미구현) |
 

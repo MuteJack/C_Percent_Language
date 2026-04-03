@@ -102,6 +102,7 @@
 | 기능        | C++           | Python         | C%             | 상태   |
 | ----------- | ------------- | -------------- | -------------- | ------ |
 | try/catch   | `try/catch` | `try/except` | **없음** | 미구현 |
+| #define/#undef | `#define`, `#undef` | (없음) | `#define`, `#undef` (C/C++과 동일) | 구현완료 |
 | 모듈/import | `#include`  | `import`     | **없음** | 미구현 |
 | 파일 I/O    | `fstream`   | `open()`     | **없음** | 미구현 |
 

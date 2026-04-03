@@ -1,5 +1,6 @@
 // C% interpreter entry point
 // Supports both file execution mode and interactive REPL mode.
+#include "preprocessor.h"
 #include "lexer.h"
 #include "parser.h"
 #include "interpreter.h"
@@ -19,11 +20,14 @@ static std::string readFile(const std::string& path) {
     return ss.str();
 }
 
-// Runs the source string through the lexer → parser → interpreter pipeline.
+// Runs the source string through the preprocessor → lexer → parser → interpreter pipeline.
 // Returns exit code from main() or 0 for script mode. Returns 1 on error.
 static int runSource(const std::string& source, Interpreter& interp) {
     try {
-        Lexer lexer(source);
+        Preprocessor pp;
+        std::string processed = pp.process(source);
+
+        Lexer lexer(processed);
         auto tokens = lexer.tokenize();
 
         Parser parser(tokens);
