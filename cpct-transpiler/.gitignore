@@ -1,0 +1,12 @@
+# Hidden files
+/.*
+!/.gitignore
+
+# Build files
+/build/*
+/*.exe
+/*.o
+
+# Test files
+/test_*.cpp
+/test_*.exe
