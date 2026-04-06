@@ -82,6 +82,18 @@ public:
     template<typename V>
     V get_char(char key) const { return getImpl<V>(tagChar(key)); }
 
+    // operator[] — string key, returns std::any&
+    std::any& operator[](const std::string& key) {
+        std::size_t idx = findIndex(tagStr(key));
+        if (idx == NOT_FOUND) {
+            // Auto-insert with empty any
+            setImpl(tagStr(key), key, std::any{});
+            idx = findIndex(tagStr(key));
+        }
+        return values_[idx];
+    }
+    std::any& operator[](const char* key) { return operator[](std::string(key)); }
+
     // remove — string key
     void remove(const std::string& key) { removeImpl(tagStr(key)); }
     void remove(const char* key) { remove(std::string(key)); }

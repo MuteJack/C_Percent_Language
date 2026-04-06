@@ -14,7 +14,6 @@ public:
 
     constexpr Char() noexcept : val_(0) {}
     constexpr Char(char v) noexcept : val_(v) {}
-    constexpr Char(int v) noexcept : val_(static_cast<char>(v)) {}
 
     constexpr operator char() const noexcept { return val_; }
 
@@ -23,13 +22,15 @@ public:
     static constexpr char max() { return std::numeric_limits<char>::max(); }
     static constexpr char min() { return std::numeric_limits<char>::min(); }
 
-    // Arithmetic (char is numeric in C%)
-    constexpr Char operator+(Char rhs) const noexcept { return Char(val_ + rhs.val_); }
-    constexpr Char operator-(Char rhs) const noexcept { return Char(val_ - rhs.val_); }
+    // Increment/decrement
     Char& operator++() noexcept { ++val_; return *this; }
     Char operator++(int) noexcept { Char t = *this; ++val_; return t; }
     Char& operator--() noexcept { --val_; return *this; }
     Char operator--(int) noexcept { Char t = *this; --val_; return t; }
+
+    // Compound assignment
+    Char& operator+=(char rhs) noexcept { val_ += rhs; return *this; }
+    Char& operator-=(char rhs) noexcept { val_ -= rhs; return *this; }
 
     // Comparison
     // Comparison: handled by implicit conversion to char

@@ -1,9 +1,9 @@
-// cpct/int.h
-// cpct::Int — wraps int_fast16_t (C%'s default `int` type).
-// Provides C%-compatible methods: type(), size().
-// Implicitly converts to/from the underlying native type.
+// cpct/data/type/int.h
+// cpct::Int — C%'s default `int` type.
+// Maps to platform-configured fixed-size type (int64_t by default).
+// Arithmetic uses implicit conversion to native_type → C++ built-in operators.
 #pragma once
-#include <cstdint>
+#include "../../platform.h"
 #include <string>
 #include <iostream>
 #include <limits>
@@ -12,16 +12,12 @@ namespace cpct {
 
 class Int {
 public:
-    using native_type = int_fast16_t;
+    using native_type = int_t; // from platform.h
 
-    // Constructors
     constexpr Int() noexcept : val_(0) {}
     constexpr Int(native_type v) noexcept : val_(v) {}
-    constexpr Int(int v) noexcept : val_(static_cast<native_type>(v)) {}
-    constexpr Int(long v) noexcept : val_(static_cast<native_type>(v)) {}
-    constexpr Int(long long v) noexcept : val_(static_cast<native_type>(v)) {}
 
-    // Implicit conversion to native type
+    // Implicit conversion to native type — enables built-in arithmetic/comparison
     constexpr operator native_type() const noexcept { return val_; }
 
     // C% built-in methods
@@ -30,41 +26,23 @@ public:
     static constexpr native_type max() { return std::numeric_limits<native_type>::max(); }
     static constexpr native_type min() { return std::numeric_limits<native_type>::min(); }
 
-    // Arithmetic operators (return Int to keep wrapping)
-    constexpr Int operator+(Int rhs) const noexcept { return Int(val_ + rhs.val_); }
-    constexpr Int operator-(Int rhs) const noexcept { return Int(val_ - rhs.val_); }
-    constexpr Int operator*(Int rhs) const noexcept { return Int(val_ * rhs.val_); }
-    constexpr Int operator/(Int rhs) const { return Int(val_ / rhs.val_); }
-    constexpr Int operator%(Int rhs) const { return Int(val_ % rhs.val_); }
-    constexpr Int operator-() const noexcept { return Int(-val_); }
-
-    // Compound assignment
-    Int& operator+=(Int rhs) noexcept { val_ += rhs.val_; return *this; }
-    Int& operator-=(Int rhs) noexcept { val_ -= rhs.val_; return *this; }
-    Int& operator*=(Int rhs) noexcept { val_ *= rhs.val_; return *this; }
-    Int& operator/=(Int rhs) { val_ /= rhs.val_; return *this; }
-    Int& operator%=(Int rhs) { val_ %= rhs.val_; return *this; }
-
-    // Increment/decrement
+    // Increment/decrement (must be on class — built-in can't return Int)
     Int& operator++() noexcept { ++val_; return *this; }
     Int operator++(int) noexcept { Int tmp = *this; ++val_; return tmp; }
     Int& operator--() noexcept { --val_; return *this; }
     Int operator--(int) noexcept { Int tmp = *this; --val_; return tmp; }
 
-    // Comparison: handled by implicit conversion to native_type (no class-level operators needed)
-
-    // Bitwise operators
-    constexpr Int operator&(Int rhs) const noexcept { return Int(val_ & rhs.val_); }
-    constexpr Int operator|(Int rhs) const noexcept { return Int(val_ | rhs.val_); }
-    constexpr Int operator^(Int rhs) const noexcept { return Int(val_ ^ rhs.val_); }
-    constexpr Int operator~() const noexcept { return Int(~val_); }
-    constexpr Int operator<<(Int rhs) const noexcept { return Int(val_ << rhs.val_); }
-    constexpr Int operator>>(Int rhs) const noexcept { return Int(val_ >> rhs.val_); }
-    Int& operator&=(Int rhs) noexcept { val_ &= rhs.val_; return *this; }
-    Int& operator|=(Int rhs) noexcept { val_ |= rhs.val_; return *this; }
-    Int& operator^=(Int rhs) noexcept { val_ ^= rhs.val_; return *this; }
-    Int& operator<<=(Int rhs) noexcept { val_ <<= rhs.val_; return *this; }
-    Int& operator>>=(Int rhs) noexcept { val_ >>= rhs.val_; return *this; }
+    // Compound assignment (must be on class — modifies val_)
+    Int& operator+=(native_type rhs) noexcept { val_ += rhs; return *this; }
+    Int& operator-=(native_type rhs) noexcept { val_ -= rhs; return *this; }
+    Int& operator*=(native_type rhs) noexcept { val_ *= rhs; return *this; }
+    Int& operator/=(native_type rhs) { val_ /= rhs; return *this; }
+    Int& operator%=(native_type rhs) { val_ %= rhs; return *this; }
+    Int& operator&=(native_type rhs) noexcept { val_ &= rhs; return *this; }
+    Int& operator|=(native_type rhs) noexcept { val_ |= rhs; return *this; }
+    Int& operator^=(native_type rhs) noexcept { val_ ^= rhs; return *this; }
+    Int& operator<<=(native_type rhs) noexcept { val_ <<= rhs; return *this; }
+    Int& operator>>=(native_type rhs) noexcept { val_ >>= rhs; return *this; }
 
     // Stream output
     friend std::ostream& operator<<(std::ostream& os, Int v) {

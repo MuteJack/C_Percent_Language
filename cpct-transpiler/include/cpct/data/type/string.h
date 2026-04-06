@@ -125,6 +125,8 @@ public:
     // Concatenation
     String operator+(const String& rhs) const { return String(val_ + rhs.val_); }
     String& operator+=(const String& rhs) { val_ += rhs.val_; return *this; }
+    // Allow "literal" + String
+    friend String operator+(const char* lhs, const String& rhs) { return String(std::string(lhs) + rhs.val_); }
 
     // Comparison
     bool operator==(const String& rhs) const { return val_ == rhs.val_; }
@@ -153,8 +155,9 @@ private:
     std::string val_;
 };
 
-// Free function: join
-inline String join(const String& sep, const std::vector<String>& parts) {
+// Free function: join — accepts std::vector or any iterable with .size() and []
+template<typename Container>
+inline String join(const String& sep, const Container& parts) {
     std::string result;
     for (size_t i = 0; i < parts.size(); i++) {
         if (i > 0) result += sep.str();

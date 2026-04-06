@@ -4,6 +4,39 @@
 #pragma once
 #include <iostream>
 #include <string>
+#include <utility>
+#include <vector>
+#include <any>
+
+// Stream output for std::pair (divmod result)
+template<typename A, typename B>
+std::ostream& operator<<(std::ostream& os, const std::pair<A, B>& p) {
+    return os << "[" << p.first << ", " << p.second << "]";
+}
+
+// Stream output for std::any (Dict values)
+inline std::ostream& operator<<(std::ostream& os, const std::any& a) {
+    if (!a.has_value()) return os << "null";
+    if (a.type() == typeid(int)) return os << std::any_cast<int>(a);
+    if (a.type() == typeid(int64_t)) return os << std::any_cast<int64_t>(a);
+    if (a.type() == typeid(double)) return os << std::any_cast<double>(a);
+    if (a.type() == typeid(float)) return os << std::any_cast<float>(a);
+    if (a.type() == typeid(bool)) return os << (std::any_cast<bool>(a) ? "true" : "false");
+    if (a.type() == typeid(char)) return os << std::any_cast<char>(a);
+    if (a.type() == typeid(std::string)) return os << std::any_cast<std::string>(a);
+    return os << "<?>";
+}
+
+// Stream output for std::vector (keys(), values() etc.)
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& v) {
+    os << "[";
+    for (size_t i = 0; i < v.size(); i++) {
+        if (i > 0) os << ", ";
+        os << v[i];
+    }
+    return os << "]";
+}
 
 namespace cpct {
 

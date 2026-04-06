@@ -10,11 +10,13 @@
 #include "data/type/string.h"
 #include "data/type/bool.h"
 #include "data/type/char.h"
+#include "data/type/intbig.h"
 
 // Utilities
 #include "data/math.h"
 #include "data/format.h"
 #include "data/cast.h"
+#include "data/compare.h"
 
 // Data structures
 #include "data/structure/array.h"
