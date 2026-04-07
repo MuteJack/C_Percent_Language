@@ -1,6 +1,6 @@
 // cling_repl.cpp
 // C% Cling JIT REPL — translates C% to C++, sends to cling process via pipe.
-#include "../../translator/src/translator.h"
+#include "../../cpct-transpiler/src/translator.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>

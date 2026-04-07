@@ -1,13 +1,13 @@
 // translator.h
 // C% to C++ translator — converts AST to C++20 source code using cpct library.
-// Reuses the interpreter's Preprocessor, Lexer, Parser to obtain the AST,
+// Reuses cpct-core's Preprocessor, Lexer, Parser to obtain the AST,
 // then walks the tree to emit C++ code.
 #pragma once
 #include "analyzer.h"
-#include "../../cpct-interpreter/src/ast.h"
-#include "../../cpct-interpreter/src/preprocessor.h"
-#include "../../cpct-interpreter/src/lexer.h"
-#include "../../cpct-interpreter/src/parser.h"
+#include "../../cpct-core/src/ast.h"
+#include "../../cpct-core/src/preprocessor.h"
+#include "../../cpct-core/src/lexer.h"
+#include "../../cpct-core/src/parser.h"
 #include <string>
 #include <sstream>
 #include <unordered_set>

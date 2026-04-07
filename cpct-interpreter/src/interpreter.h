@@ -4,7 +4,7 @@
 // Includes runtime values (CpctValue), containers (TypedArray, CpctDict), scopes (Environment),
 // control flow exceptions (ReturnSignal, etc.), and the Interpreter execution engine.
 #pragma once
-#include "ast.h"
+#include "../../cpct-core/src/ast.h"
 #include "bigint.h"
 #include <string>
 #include <variant>

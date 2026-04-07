@@ -7,9 +7,9 @@ set -e
 
 CXX="/mingw64/bin/g++"
 CXXFLAGS="-std=c++17 -O2 -Wall -Wextra"
-SRC="cpct-interpreter/src/main.cpp cpct-interpreter/src/lexer.cpp cpct-interpreter/src/parser.cpp cpct-interpreter/src/interpreter.cpp cpct-interpreter/src/bigint.cpp"
+SRC="cpct-interpreter/src/main.cpp cpct-core/src/lexer.cpp cpct-core/src/parser.cpp cpct-interpreter/src/interpreter.cpp cpct-interpreter/src/bigint.cpp"
 OUT="cpct.exe"
 
 echo "Building C% Interpreter..."
-$CXX $CXXFLAGS $SRC -Icpct-interpreter/src -o $OUT
+$CXX $CXXFLAGS $SRC -Icpct-core/src -Icpct-interpreter/src -o $OUT
 echo "Build successful: $OUT"

@@ -1,0 +1,231 @@
+// token.h
+// Defines token types (TokenType) and the Token struct produced by the lexer.
+// getKeywords(): reserved word string → TokenType mapping table
+// tokenTypeToString(): TokenType → string conversion for debugging
+#pragma once
+#include <string>
+#include <unordered_map>
+
+// Token categories: literals, identifiers, type keywords, control keywords, operators, delimiters, special tokens
+enum class TokenType {
+    // Literals
+    INT_LIT, FLOAT_LIT, STRING_LIT, CHAR_LIT, BOOL_LIT, FSTRING_LIT,
+
+    // Identifier
+    IDENTIFIER,
+
+    // Types
+    KW_INT, KW_INT8, KW_INT16, KW_INT32, KW_INT64, KW_INTBIG, KW_BIGINT,
+    KW_INT8F, KW_INT16F, KW_INT32F,
+    KW_UINT, KW_UINT8, KW_UINT16, KW_UINT32, KW_UINT64,
+    KW_UINT8F, KW_UINT16F, KW_UINT32F,
+    KW_FLOAT, KW_FLOAT32, KW_FLOAT64,
+    KW_CHAR, KW_STRING, KW_BOOL, KW_VOID,
+
+    // Keywords
+    KW_IF, KW_ELSE, KW_WHILE, KW_DO, KW_FOR, KW_RETURN,
+    KW_PRINT, KW_PRINTLN, KW_INPUT, KW_TRUE, KW_FALSE,
+    KW_BREAK, KW_CONTINUE, KW_SWITCH, KW_CASE, KW_DEFAULT,
+    KW_DICT, KW_MAP, KW_VECTOR, KW_ARRAY,
+    KW_LET, KW_REF, KW_CONST, KW_STATIC, KW_HEAP,
+
+    // Operators
+    PLUS, MINUS, STAR, SLASH, PERCENT, POWER, DIVMOD,
+    ASSIGN, EQ, NEQ, LT, GT, LTE, GTE,
+    AND, OR, NOT,
+    BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, LSHIFT, RSHIFT,
+    PLUS_ASSIGN, MINUS_ASSIGN, STAR_ASSIGN, SLASH_ASSIGN, PERCENT_ASSIGN,
+    BIT_AND_ASSIGN, BIT_OR_ASSIGN, BIT_XOR_ASSIGN, LSHIFT_ASSIGN, RSHIFT_ASSIGN,
+    INCREMENT, DECREMENT,
+    QUESTION,
+    AT,        // @
+
+    // Delimiters
+    LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET,
+    SEMICOLON, COMMA, COLON, DOT,
+
+    // Special
+    EOF_TOKEN, ERROR
+};
+
+// Represents a single token: type, raw string value, source location (line, column)
+struct Token {
+    TokenType type;
+    std::string value;
+    int line;
+    int col;
+
+    Token() : type(TokenType::EOF_TOKEN), line(0), col(0) {}
+    Token(TokenType type, std::string value, int line, int col)
+        : type(type), value(std::move(value)), line(line), col(col) {}
+};
+
+// Reserved word → TokenType mapping (created once via static local variable)
+inline const std::unordered_map<std::string, TokenType>& getKeywords() {
+    static const std::unordered_map<std::string, TokenType> keywords = {
+        {"int",      TokenType::KW_INT},
+        {"int8",     TokenType::KW_INT8},
+        {"int16",    TokenType::KW_INT16},
+        {"int32",    TokenType::KW_INT32},
+        {"int64",    TokenType::KW_INT64},
+        {"intbig",   TokenType::KW_INTBIG},
+        {"bigint",   TokenType::KW_BIGINT},
+        {"int8f",    TokenType::KW_INT8F},
+        {"int16f",   TokenType::KW_INT16F},
+        {"int32f",   TokenType::KW_INT32F},
+        {"uint",     TokenType::KW_UINT},
+        {"uint8",    TokenType::KW_UINT8},
+        {"uint16",   TokenType::KW_UINT16},
+        {"uint32",   TokenType::KW_UINT32},
+        {"uint64",   TokenType::KW_UINT64},
+        {"uint8f",   TokenType::KW_UINT8F},
+        {"uint16f",  TokenType::KW_UINT16F},
+        {"uint32f",  TokenType::KW_UINT32F},
+        {"float",    TokenType::KW_FLOAT},
+        {"float32",  TokenType::KW_FLOAT32},
+        {"float64",  TokenType::KW_FLOAT64},
+        {"char",     TokenType::KW_CHAR},
+        {"string",   TokenType::KW_STRING},
+        {"bool",     TokenType::KW_BOOL},
+        {"void",     TokenType::KW_VOID},
+        {"if",       TokenType::KW_IF},
+        {"else",     TokenType::KW_ELSE},
+        {"while",    TokenType::KW_WHILE},
+        {"do",       TokenType::KW_DO},
+        {"for",      TokenType::KW_FOR},
+        {"return",   TokenType::KW_RETURN},
+        {"print",    TokenType::KW_PRINT},
+        {"println",  TokenType::KW_PRINTLN},
+        {"input",    TokenType::KW_INPUT},
+        {"true",     TokenType::KW_TRUE},
+        {"false",    TokenType::KW_FALSE},
+        {"break",    TokenType::KW_BREAK},
+        {"continue", TokenType::KW_CONTINUE},
+        {"switch",   TokenType::KW_SWITCH},
+        {"case",     TokenType::KW_CASE},
+        {"default",  TokenType::KW_DEFAULT},
+        {"dict",     TokenType::KW_DICT},
+        {"map",      TokenType::KW_MAP},
+        {"vector",   TokenType::KW_VECTOR},
+        {"array",    TokenType::KW_ARRAY},
+        {"let",      TokenType::KW_LET},
+        {"ref",      TokenType::KW_REF},
+        {"const",    TokenType::KW_CONST},
+        {"static",   TokenType::KW_STATIC},
+        {"heap",     TokenType::KW_HEAP},
+    };
+    return keywords;
+}
+
+// Converts TokenType to a human-readable string for debugging/error messages
+inline std::string tokenTypeToString(TokenType type) {
+    switch (type) {
+        case TokenType::INT_LIT: return "INT_LIT";
+        case TokenType::FLOAT_LIT: return "FLOAT_LIT";
+        case TokenType::STRING_LIT: return "STRING_LIT";
+        case TokenType::CHAR_LIT: return "CHAR_LIT";
+        case TokenType::BOOL_LIT: return "BOOL_LIT";
+        case TokenType::FSTRING_LIT: return "FSTRING_LIT";
+        case TokenType::IDENTIFIER: return "IDENTIFIER";
+        case TokenType::KW_INT: return "int";
+        case TokenType::KW_INT8: return "int8";
+        case TokenType::KW_INT16: return "int16";
+        case TokenType::KW_INT32: return "int32";
+        case TokenType::KW_INT64: return "int64";
+        case TokenType::KW_INTBIG: return "intbig";
+        case TokenType::KW_BIGINT: return "bigint";
+        case TokenType::KW_INT8F: return "int8f";
+        case TokenType::KW_INT16F: return "int16f";
+        case TokenType::KW_INT32F: return "int32f";
+        case TokenType::KW_UINT: return "uint";
+        case TokenType::KW_UINT8: return "uint8";
+        case TokenType::KW_UINT16: return "uint16";
+        case TokenType::KW_UINT32: return "uint32";
+        case TokenType::KW_UINT64: return "uint64";
+        case TokenType::KW_UINT8F: return "uint8f";
+        case TokenType::KW_UINT16F: return "uint16f";
+        case TokenType::KW_UINT32F: return "uint32f";
+        case TokenType::KW_FLOAT: return "float";
+        case TokenType::KW_FLOAT32: return "float32";
+        case TokenType::KW_FLOAT64: return "float64";
+        case TokenType::KW_CHAR: return "char";
+        case TokenType::KW_STRING: return "string";
+        case TokenType::KW_BOOL: return "bool";
+        case TokenType::KW_VOID: return "void";
+        case TokenType::KW_IF: return "if";
+        case TokenType::KW_ELSE: return "else";
+        case TokenType::KW_WHILE: return "while";
+        case TokenType::KW_DO: return "do";
+        case TokenType::KW_FOR: return "for";
+        case TokenType::KW_RETURN: return "return";
+        case TokenType::KW_PRINT: return "print";
+        case TokenType::KW_PRINTLN: return "println";
+        case TokenType::KW_INPUT: return "input";
+        case TokenType::KW_TRUE: return "true";
+        case TokenType::KW_FALSE: return "false";
+        case TokenType::KW_BREAK: return "break";
+        case TokenType::KW_CONTINUE: return "continue";
+        case TokenType::KW_SWITCH: return "switch";
+        case TokenType::KW_CASE: return "case";
+        case TokenType::KW_DEFAULT: return "default";
+        case TokenType::KW_DICT: return "dict";
+        case TokenType::KW_MAP: return "map";
+        case TokenType::KW_VECTOR: return "vector";
+        case TokenType::KW_ARRAY: return "array";
+        case TokenType::KW_LET: return "let";
+        case TokenType::KW_REF: return "ref";
+        case TokenType::KW_CONST: return "const";
+        case TokenType::KW_STATIC: return "static";
+        case TokenType::KW_HEAP: return "heap";
+        case TokenType::PLUS: return "+";
+        case TokenType::MINUS: return "-";
+        case TokenType::STAR: return "*";
+        case TokenType::SLASH: return "/";
+        case TokenType::PERCENT: return "%";
+        case TokenType::POWER: return "**";
+        case TokenType::DIVMOD: return "/%";
+        case TokenType::ASSIGN: return "=";
+        case TokenType::EQ: return "==";
+        case TokenType::NEQ: return "!=";
+        case TokenType::LT: return "<";
+        case TokenType::GT: return ">";
+        case TokenType::LTE: return "<=";
+        case TokenType::GTE: return ">=";
+        case TokenType::AND: return "&&";
+        case TokenType::OR: return "||";
+        case TokenType::NOT: return "!";
+        case TokenType::BIT_AND: return "&";
+        case TokenType::BIT_OR: return "|";
+        case TokenType::BIT_XOR: return "^";
+        case TokenType::BIT_NOT: return "~";
+        case TokenType::LSHIFT: return "<<";
+        case TokenType::RSHIFT: return ">>";
+        case TokenType::PLUS_ASSIGN: return "+=";
+        case TokenType::MINUS_ASSIGN: return "-=";
+        case TokenType::STAR_ASSIGN: return "*=";
+        case TokenType::SLASH_ASSIGN: return "/=";
+        case TokenType::PERCENT_ASSIGN: return "%=";
+        case TokenType::BIT_AND_ASSIGN: return "&=";
+        case TokenType::BIT_OR_ASSIGN: return "|=";
+        case TokenType::BIT_XOR_ASSIGN: return "^=";
+        case TokenType::LSHIFT_ASSIGN: return "<<=";
+        case TokenType::RSHIFT_ASSIGN: return ">>=";
+        case TokenType::QUESTION: return "?";
+        case TokenType::AT: return "@";
+        case TokenType::INCREMENT: return "++";
+        case TokenType::DECREMENT: return "--";
+        case TokenType::LPAREN: return "(";
+        case TokenType::RPAREN: return ")";
+        case TokenType::LBRACE: return "{";
+        case TokenType::RBRACE: return "}";
+        case TokenType::LBRACKET: return "[";
+        case TokenType::RBRACKET: return "]";
+        case TokenType::SEMICOLON: return ";";
+        case TokenType::COMMA: return ",";
+        case TokenType::COLON: return ":";
+        case TokenType::DOT: return ".";
+        case TokenType::EOF_TOKEN: return "EOF";
+        case TokenType::ERROR: return "ERROR";
+    }
+    return "UNKNOWN";
+}

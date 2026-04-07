@@ -3,7 +3,7 @@
 // Currently implements:
 //   - Move-after-use detection: flags use of variables after `let` ownership transfer.
 #pragma once
-#include "../../cpct-interpreter/src/ast.h"
+#include "../../cpct-core/src/ast.h"
 #include <string>
 #include <unordered_set>
 #include <unordered_map>

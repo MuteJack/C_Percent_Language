@@ -1,8 +1,8 @@
 // C% interpreter entry point
 // Supports both file execution mode and interactive REPL mode.
-#include "preprocessor.h"
-#include "lexer.h"
-#include "parser.h"
+#include "../../cpct-core/src/preprocessor.h"
+#include "../../cpct-core/src/lexer.h"
+#include "../../cpct-core/src/parser.h"
 #include "interpreter.h"
 #include <iostream>
 #include <fstream>
