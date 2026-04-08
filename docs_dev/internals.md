@@ -1,127 +1,121 @@
-# C% 인터프리터 내부 구현
+# C% 내부 구현
 
-## 런타임 값 (CpctValue)
+## 인터프리터 런타임 값 (CpctValue)
+
+> 인터프리터는 폐기 예정. 이 섹션은 참고용으로 유지.
 
 트리워킹 인터프리터에서 모든 스칼라 변수는 `CpctValue`(`std::variant`)에 저장된다.
-`variant`는 가장 큰 멤버 크기로 고정되므로, `int8`이든 `int64`이든 동일한 메모리를 차지한다.
-범위 제한(wrap-around, 정밀도 절삭)은 대입/연산 시점에 소프트웨어적으로 적용된다.
 
 ```
 CpctValue = std::variant<int64_t, uint64_t, double, bool, std::string,
                         std::vector<CpctValue>, BigInt, TypedArray, CpctDict>
-sizeof(CpctValue) ≈ 40~48 bytes (플랫폼/컴파일러에 따라 상이)
+sizeof(CpctValue) ≈ 40~48 bytes
 ```
-
-| 스칼라 타입 | 실제 저장 타입 | 범위 제한 방식 |
-| ----------- | -------------- | -------------- |
-| `int`, `int8`~`int64`, `char` | `int64_t` | `checkIntRange()` wrap-around |
-| `uint`~`uint64` | `uint64_t` | `checkIntRange()` wrap-around |
-| `intbig` | `int64_t` 또는 `BigInt` | 오버플로 시 BigInt 승격 |
-| `bigint` | `BigInt` | 제한 없음 |
-| `float`, `float64` | `double` | IEEE 754 배정밀도 |
-| `float32` | `double` | `coerceFloat()` 단정밀도 절삭 |
-| `bool` | `bool` | — |
-| `string` | `std::string` | — |
 
 ---
 
-## 배열 (TypedArray)
+## cpct-cpp-lib 타입 시스템
 
-배열은 선언된 원소 타입에 따라 **타입별 특화 저장소(TypedArray)**를 사용한다.
-원소가 실제 해당 크기로 저장되므로 C와 동일한 메모리 효율을 가진다.
+트랜스파일된 C++ 코드가 사용하는 타입 라이브러리. 각 타입은 네이티브 C++ 타입을 래핑하며, 암시적 변환을 통해 C++ built-in 연산자를 사용한다.
 
-| 배열 타입 | 원소 크기 | 100개 배열 메모리 | C 동등 타입 |
-| --------- | --------- | ----------------- | ----------- |
-| `int8[]`    | 1 byte  | 100 bytes         | `int8_t[]`  |
-| `int16[]`   | 2 bytes | 200 bytes         | `int16_t[]` |
-| `int[]`, `int32[]` | 4 bytes | 400 bytes  | `int32_t[]` |
-| `int64[]`   | 8 bytes | 800 bytes         | `int64_t[]` |
-| `intbig[]`  | 가변    | 요소별 가변         | BigInt 지원  |
-| `bigint[]`  | 가변    | 가변 (BigInt)      | BigInt 지원  |
-| `uint8[]`   | 1 byte  | 100 bytes         | `uint8_t[]` |
-| `uint16[]`  | 2 bytes | 200 bytes         | `uint16_t[]`|
-| `uint[]`, `uint32[]` | 4 bytes | 400 bytes | `uint32_t[]`|
-| `uint64[]`  | 8 bytes | 800 bytes         | `uint64_t[]`|
-| `float32[]` | 4 bytes | 400 bytes         | `float[]`   |
-| `float[]`, `float64[]` | 8 bytes | 800 bytes | `double[]` |
-| `char[]`    | 1 byte  | 100 bytes         | `char[]`    |
-| `bool[]`    | 1 byte  | 100 bytes         | `bool[]`    |
+### 스칼라 타입
 
-- sized 타입 배열(`int8[]`, `float32[]` 등)은 네이티브 크기로 직접 저장
-- `string[]`은 문자열 포인터 배열 (원소 크기 동적)
-- 다차원 배열은 연속 메모리 또는 행 포인터 배열로 구현
+| C% 타입 | cpct 클래스 | native_type | 연산 |
+| ------- | ----------- | ----------- | ---- |
+| `int` | `Int` | `int_t` (platform.h) | built-in 위임 |
+| `int8`~`int64` | `Int8`~`Int64` | `int8_t`~`int64_t` | built-in 위임 |
+| `int8f`~`int32f` | `Int8f`~`Int32f` | `fast8_t`~`fast32_t` (platform.h) | built-in 위임 |
+| `intbig` | `IntBig` | `variant<int64_t, BigInt>` | 자체 연산자 (오버플로 감지) |
+| `float` | `Float` | `double` | built-in 위임 |
+| `string` | `String` | `std::string` | 자체 메서드 |
+| `bool` | `Bool` | `bool` | built-in 위임 |
+| `char` | `Char` | `char` | built-in 위임 |
 
-### 문자열 리터럴 내부 저장
+### 연산자 전략
 
-문자열 리터럴(`"..."`)은 내부적으로 `char[]`로 저장된다 (C/C++과 동일).
-`string` 변수에 대입 시 `string` 객체로 승격된다.
-리터럴에 대한 `+` 연산은 항상 문자열 연결로 처리된다 (포인터 산술 없음).
+대부분의 타입은 **산술 연산자를 정의하지 않는다.** `operator native_type()`으로 암시적 변환한 뒤 C++ built-in 연산자를 사용한다. 이 설계의 장점:
+- 리터럴(`1`, `3.14`)과 혼합 연산 시 모호성 없음
+- 코드량 최소화
+- 네이티브 성능
+
+예외: `IntBig`은 오버플로 감지가 필요하므로 자체 연산자를 가진다.
+
+### 플랫폼 설정 (platform.h)
+
+fast 타입의 실제 크기를 플랫폼별로 고정 크기 타입으로 매핑한다.
+`int_fast*_t`를 직접 사용하면 컴파일러마다 다른 타입이 되어 모호성이 생기므로, 우리가 직접 결정한다.
+
+| 프리셋 | fast8 | fast16 | fast32 |
+| ------ | ----- | ------ | ------ |
+| default (x64-linux, arm64) | int8_t | int64_t | int64_t |
+| x86, x64-win, esp32 | int8_t | int32_t | int32_t |
+| avr | int8_t | int16_t | int32_t |
+| arm32 | int32_t | int32_t | int32_t |
+
+### 비교 연산 (compare.h)
+
+모든 비교 연산은 `cpct::cmp_*` 함수로 변환된다. 정수 타입은 `std::cmp_*`(C++20)를 사용하여 signed/unsigned 혼합 비교를 안전하게 처리한다. 비정수 타입(float, string, char, bool)은 기본 `<`, `>` 연산자를 사용한다. `if constexpr`로 컴파일 타임 분기하므로 런타임 오버헤드 없음.
 
 ---
 
-## dict / map (CpctDict)
+## 자료구조
 
-dict와 map은 내부적으로 동일한 `CpctDict` 구조체를 사용하되, 인덱싱 전략이 다르다.
+### Array<T, N>
 
-### 공통 구조
+`std::array<T, N>` 래핑. 고정 크기. 음수 인덱싱, 슬라이싱, sort, reverse, find, is_contains 지원.
 
+### Vector<T>
+
+`std::vector<T>` 래핑. 동적 크기. push/pop/insert/erase/clear + 음수 인덱싱, 슬라이싱, sort, reverse, find, is_contains 지원.
+
+### Dict
+
+비타입 딕셔너리. 키: string, int, bool, char (tagged hash로 구분). 값: `std::any`. 삽입 순서 유지. sortkey/sortval/sortvk 지원.
+
+### Map<K, V>
+
+타입 고정 맵. 해시 기반 + 체이닝으로 충돌 처리. 삽입 순서 유지. 타입 coercion 지원. sortkey/sortval/sortvk 지원. remove는 shift 방식 (순서 보존).
+
+---
+
+## 정적 분석 (Analyzer)
+
+트랜스파일 전 AST를 순회하며 오류를 감지한다.
+
+### move-after-use 검사
+
+`let`으로 이동된 변수를 이후에 사용하면 컴파일 에러:
 ```
-CpctDict {
-    keyType: string                  // "" (dict) 또는 "string"/"int"/... (map)
-    valueType: string                // "" (dict) 또는 "int"/"float"/... (map)
-    keys: vector<CpctValue>           // 삽입 순서 유지
-    values: vector<CpctValue>         // keys와 1:1 대응
-    strIndex: unordered_map<string, size_t>   // 문자열 해시 인덱스
-    intIndex: unordered_map<int64_t, size_t>  // 정수 해시 인덱스
-}
+let int y = x;
+println(x);       // Error: Variable 'x' has been moved
 ```
 
-### dict (untyped) — 안전한 타입 구분
-
-- `strIndex` 사용, 타입 접두사(tagged hash)로 키 충돌 방지
-- `d[1]`과 `d["1"]`이 다른 키로 구분됨
-
+스코프 인식: 블록/함수별 moved set 관리. 재대입으로 복원 가능:
 ```
-hashKey(42)      → "i:42"
-hashKey("hello") → "s:hello"
-hashKey(true)    → "b:true"
-hashKey(BigInt)  → "B:12345..."
+let int y = x;
+x = 100;          // x 복원
+println(x);       // OK
 ```
 
-### map (typed) — 성능 최적화
+---
 
-키 타입이 선언 시 고정되므로, 타입별 전용 인덱스를 사용한다.
+## 포맷 (format.h)
 
-| 키 타입 | 인덱스 | 해시 방식 | 장점 |
-| ------- | ------ | --------- | ---- |
-| `string` | `strIndex` | raw string (태그 없음) | prefix 오버헤드 제거 |
-| `int`, `char`, `bool` 등 | `intIndex` | raw `int64_t` | string 변환 비용 제거, O(1) int hash |
+`cpct::format()`은 f-string 트랜스파일 대상. `std::format` 가능 시 사용, 아닌 경우 `std::to_string` + `append` fallback.
 
-### 복잡도
-
-| 연산 | dict | map<int, V> | map<string, V> |
-| ---- | ---- | ----------- | -------------- |
-| 조회 | O(1) + string alloc | O(1) no alloc | O(1) no prefix |
-| 삽입 | O(1) + string alloc | O(1) no alloc | O(1) no prefix |
-| 삭제 | O(1) swap-remove | O(1) swap-remove | O(1) swap-remove |
-| 타입 검사 | 없음 | coercion 강제 | coercion 강제 |
-
-### 삭제 구현 (swap-remove)
-
-마지막 원소를 삭제 위치로 이동하여 O(1)에 삭제한다.
-삽입 순서가 일부 변경될 수 있다.
-
-```
-remove(key):
-  1. 인덱스에서 위치 pos 조회
-  2. keys[pos] = keys[last], values[pos] = values[last]
-  3. 인덱스 갱신: moved element의 위치를 pos로
-  4. keys/values pop_back, 인덱스에서 원래 키 제거
+```cpp
+#if CPCT_HAS_STD_FORMAT
+    // std::format 사용
+#else
+    // to_string + append (크로스플랫폼)
+#endif
 ```
 
 ---
 
 ## TODO
 
-- [ ] 플랫폼별 최적 정수 크기: 현재 인터프리터는 모든 연산을 C++ `int64_t`로 수행. 향후 컴파일러/바이트코드 전환 시 `int_fast8_t`, `int_fast16_t` 등 플랫폼 최적 크기를 활용하여 레지스터 연산 효율 개선 검토
-- [ ] map: typed value storage — value 타입이 고정이므로 `vector<int64_t>` 등 flat 저장으로 variant 오버헤드 제거 가능
+- [ ] fast 타입 오버플로 런타임 에러 (cpct-cpp-lib)
+- [ ] const 위반 정적 분석 (Analyzer 확장)
+- [ ] ref 반환 지원 + lifetime 검사
+- [ ] `:=` 복사 대입 연산자
