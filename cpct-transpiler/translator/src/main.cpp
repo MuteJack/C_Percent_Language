@@ -1,4 +1,7 @@
-// C% Translator CLI — translates .cpc files to .cpp files
+// C% Translator CLI — translates .cpc files to C++ source.
+// Usage:
+//   cpct-translate input.cpc              → stdout
+//   cpct-translate input.cpc output.cpp   → write .cpp file
 #include "translator.h"
 #include <iostream>
 #include <fstream>
@@ -32,9 +35,9 @@ static void printUsage() {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
+    if (argc < 2 || std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") {
         printUsage();
-        return 1;
+        return argc < 2 ? 1 : 0;
     }
 
     std::string inputFile = argv[1];

@@ -2,7 +2,8 @@
 # C% Build Script
 # Usage:
 #   bash build.sh              # Build all
-#   bash build.sh transpiler   # Build transpiler only
+#   bash build.sh translator   # Build translator only
+#   bash build.sh compiler     # Build compiler only
 #   bash build.sh jit          # Build Cling JIT REPL only
 
 set -e
@@ -12,15 +13,23 @@ CXXFLAGS="-std=c++20 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare"
 CORE_SRC="cpct-core/src/lexer.cpp cpct-core/src/parser.cpp"
 LIB_SRC=$(sed 's|^|cpct-cpp-lib/|' cpct-cpp-lib/sources.txt)
 
-build_transpiler() {
-    echo "Building C% Transpiler..."
+build_translator() {
+    echo "Building C% Translator..."
     $CXX $CXXFLAGS \
         -I cpct-core/src \
         -o cpct-translate.exe \
-        cpct-transpiler/src/main.cpp \
+        cpct-transpiler/translator/src/main.cpp \
         $CORE_SRC \
         $LIB_SRC
     echo "Build successful: cpct-translate.exe"
+}
+
+build_compiler() {
+    echo "Building C% Compiler..."
+    $CXX $CXXFLAGS \
+        -o cpct-compile.exe \
+        cpct-transpiler/compiler/src/main.cpp
+    echo "Build successful: cpct-compile.exe"
 }
 
 build_jit() {
@@ -35,14 +44,16 @@ build_jit() {
 }
 
 case "${1:-all}" in
-    transpiler) build_transpiler ;;
+    translator) build_translator ;;
+    compiler)   build_compiler ;;
     jit)        build_jit ;;
     all)
-        build_transpiler
+        build_translator
+        build_compiler
         build_jit
         ;;
     *)
-        echo "Usage: bash build.sh [transpiler|jit|all]"
+        echo "Usage: bash build.sh [translator|compiler|jit|all]"
         exit 1
         ;;
 esac
