@@ -4,10 +4,10 @@
 // then walks the tree to emit C++ code.
 #pragma once
 #include "analyzer.h"
-#include "../../../cpct-core/src/ast.h"
-#include "../../../cpct-core/src/preprocessor.h"
-#include "../../../cpct-core/src/lexer.h"
-#include "../../../cpct-core/src/parser.h"
+#include "../core/ast.h"
+#include "../core/preprocessor.h"
+#include "../core/lexer.h"
+#include "../core/parser.h"
 #include <string>
 #include <sstream>
 #include <unordered_set>

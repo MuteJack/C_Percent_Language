@@ -15,25 +15,25 @@
 
 namespace fs = std::filesystem;
 
-// Find translate.exe relative to working directory
+// Find cpct-translate.exe relative to working directory
 static std::string findTranslator() {
     std::string dir = fs::path(fs::current_path()).string();
-    std::string local = dir + "\\translate.exe";
+    std::string local = dir + "\\cpct-translate.exe";
     if (std::ifstream(local).good()) return local;
-    return "translate.exe";
+    return "cpct-translate.exe";
 }
 
-// Find cpct-cpp-lib path
+// Find lib path (src/lib)
 static std::string findLibPath() {
     std::vector<std::string> candidates = {
-        "cpct-cpp-lib",
-        "../cpct-cpp-lib",
-        "../../cpct-cpp-lib",
+        "src/lib",
+        "../src/lib",
+        "../../src/lib",
     };
     for (auto& p : candidates) {
         if (std::ifstream(p + "/cpct/types.h").good()) return p;
     }
-    return "cpct-cpp-lib";
+    return "src/lib";
 }
 
 // Read sources.txt and return space-separated .cpp paths
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // 1. Translate: cpct-translate.exe input.cpc temp.cpp
+    // 1. Translate: cpct-cpct-translate.exe input.cpc temp.cpp
     std::string translator = findTranslator();
     std::string tempCpp = (fs::temp_directory_path() / "_cpct_tmp.cpp").string();
 
