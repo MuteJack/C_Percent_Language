@@ -1,15 +1,48 @@
 #!/usr/bin/env bash
-# C% Interpreter Build Script
-# Usage: C:/msys64/usr/bin/bash.exe -l -c "cd {PROJECT_ROOT} && bash build.sh"
-# Note: Windows에서는 WSL bash가 아닌 MSYS2 bash를 사용해야 합니다
+# C% Build Script
+# Usage:
+#   bash build.sh              # Build all
+#   bash build.sh transpiler   # Build transpiler only
+#   bash build.sh jit          # Build Cling JIT REPL only
 
 set -e
 
 CXX="/mingw64/bin/g++"
-CXXFLAGS="-std=c++17 -O2 -Wall -Wextra"
-SRC="cpct-interpreter/src/main.cpp cpct-core/src/lexer.cpp cpct-core/src/parser.cpp cpct-interpreter/src/interpreter.cpp cpct-interpreter/src/bigint.cpp"
-OUT="cpct.exe"
+CXXFLAGS="-std=c++20 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare"
+CORE_SRC="cpct-core/src/lexer.cpp cpct-core/src/parser.cpp"
+BIGINT_SRC="cpct-cpp-lib/cpct/data/type/bigint.cpp"
 
-echo "Building C% Interpreter..."
-$CXX $CXXFLAGS $SRC -Icpct-core/src -Icpct-interpreter/src -o $OUT
-echo "Build successful: $OUT"
+build_transpiler() {
+    echo "Building C% Transpiler..."
+    $CXX $CXXFLAGS \
+        -I cpct-core/src \
+        -o cpct-translate.exe \
+        cpct-transpiler/src/main.cpp \
+        $CORE_SRC \
+        $BIGINT_SRC
+    echo "Build successful: cpct-translate.exe"
+}
+
+build_jit() {
+    echo "Building C% Cling JIT REPL..."
+    $CXX $CXXFLAGS \
+        -I cpct-core/src \
+        -o cpct-cling.exe \
+        cpct-jit/src/cling_repl.cpp \
+        $CORE_SRC \
+        $BIGINT_SRC
+    echo "Build successful: cpct-cling.exe"
+}
+
+case "${1:-all}" in
+    transpiler) build_transpiler ;;
+    jit)        build_jit ;;
+    all)
+        build_transpiler
+        build_jit
+        ;;
+    *)
+        echo "Usage: bash build.sh [transpiler|jit|all]"
+        exit 1
+        ;;
+esac
