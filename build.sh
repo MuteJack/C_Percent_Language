@@ -10,7 +10,7 @@ set -e
 CXX="/mingw64/bin/g++"
 CXXFLAGS="-std=c++20 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare"
 CORE_SRC="cpct-core/src/lexer.cpp cpct-core/src/parser.cpp"
-BIGINT_SRC="cpct-cpp-lib/cpct/data/type/bigint.cpp"
+LIB_SRC=$(sed 's|^|cpct-cpp-lib/|' cpct-cpp-lib/sources.txt)
 
 build_transpiler() {
     echo "Building C% Transpiler..."
@@ -19,7 +19,7 @@ build_transpiler() {
         -o cpct-translate.exe \
         cpct-transpiler/src/main.cpp \
         $CORE_SRC \
-        $BIGINT_SRC
+        $LIB_SRC
     echo "Build successful: cpct-translate.exe"
 }
 
@@ -30,7 +30,7 @@ build_jit() {
         -o cpct-cling.exe \
         cpct-jit/src/cling_repl.cpp \
         $CORE_SRC \
-        $BIGINT_SRC
+        $LIB_SRC
     echo "Build successful: cpct-cling.exe"
 }
 
