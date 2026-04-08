@@ -52,7 +52,7 @@ C%는 3가지 실행 방식을 지원한다:
 | ---- | --------- | ---- | ------ |
 | 인터프리터 | `cpct.exe` | 보통 (트리워킹) | 없음 |
 | 트랜스파일러 | `cpct-translate.exe` + g++ | 빠름 (네이티브) | g++ |
-| Cling JIT | `cpct-cling.exe` | 빠름 (JIT) | conda + cling |
+| Cling JIT | `cpct-jit.exe` | 빠름 (JIT) | conda + cling |
 
 ## 빌드 방법
 
@@ -75,7 +75,7 @@ g++ -std=c++20 -I cpct-core/src \
 ```bash
 conda create -n cpct-cling -c conda-forge cling -y
 g++ -std=c++20 -I cpct-core/src \
-    -o cpct-cling.exe \
+    -o cpct-jit.exe \
     cpct-jit/src/cling_repl.cpp \
     cpct-core/src/lexer.cpp \
     cpct-core/src/parser.cpp \

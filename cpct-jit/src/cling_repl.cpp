@@ -37,7 +37,7 @@ public:
         send("#include <utility>");
         send("using namespace cpct;");
 
-        std::cout << "C% Cling REPL v0.1.0 (JIT via Cling)" << std::endl;
+        std::cout << "C% JIT REPL v0.1.0 (powered by Cling)" << std::endl;
         std::cout << "Type 'exit' to quit." << std::endl;
         std::cout << std::endl;
 

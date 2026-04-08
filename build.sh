@@ -27,11 +27,11 @@ build_jit() {
     echo "Building C% Cling JIT REPL..."
     $CXX $CXXFLAGS \
         -I cpct-core/src \
-        -o cpct-cling.exe \
+        -o cpct-jit.exe \
         cpct-jit/src/cling_repl.cpp \
         $CORE_SRC \
         $LIB_SRC
-    echo "Build successful: cpct-cling.exe"
+    echo "Build successful: cpct-jit.exe"
 }
 
 case "${1:-all}" in

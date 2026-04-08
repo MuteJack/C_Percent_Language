@@ -98,7 +98,7 @@ cp -r cpct-cpp-lib/cpct ~/.conda/envs/cpct-cling/Library/include/
 
 # 3. Cling JIT REPL 빌드
 g++ -std=c++20 -I cpct-core/src \
-    -o cpct-cling.exe \
+    -o cpct-jit.exe \
     cpct-jit/src/cling_repl.cpp \
     cpct-core/src/lexer.cpp \
     cpct-core/src/parser.cpp \
@@ -137,7 +137,7 @@ g++ -std=c++20 -I cpct-cpp-lib output.cpp \
 ### Cling JIT REPL (conda + cling 필요)
 
 ```bash
-./cpct-cling.exe
+./cpct-jit.exe
 c%> int x = 42;
 c%> println("x =", x);
 x =42
@@ -155,7 +155,7 @@ c%> println(v);
 | ---- | --------- | ---- | --------- | ------ |
 | 인터프리터 | `cpct.exe` | 보통 (트리워킹) | O (REPL) | 없음 |
 | 트랜스파일러 | `cpct-translate.exe` + g++ | 빠름 (네이티브) | - (파일 단위) | g++ |
-| Cling JIT | `cpct-cling.exe` | 빠름 (JIT) | O (REPL) | conda + cling |
+| Cling JIT | `cpct-jit.exe` | 빠름 (JIT) | O (REPL) | conda + cling |
 
 ## 프로젝트 구조
 
