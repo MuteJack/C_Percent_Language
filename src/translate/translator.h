@@ -87,7 +87,7 @@ private:
         out_ << "#include <cpct/io.h>\n";
         out_ << "#include <memory>\n";
         out_ << "#include <utility>\n";
-        out_ << "using namespace cpct;\n";
+        // No "using namespace cpct;" — all types use cpct:: prefix to avoid name conflicts
         out_ << "\n";
     }
 
@@ -110,50 +110,50 @@ private:
 
     std::string mapTypeInner(const std::string& t) const {
         // Scalar types
-        if (t == "int")     return "Int";
-        if (t == "int8")    return "Int8";
-        if (t == "int16")   return "Int16";
-        if (t == "int32")   return "Int32";
-        if (t == "int64")   return "Int64";
-        if (t == "uint")    return "UInt";
-        if (t == "uint8")   return "UInt8";
-        if (t == "uint16")  return "UInt16";
-        if (t == "uint32")  return "UInt32";
-        if (t == "uint64")  return "UInt64";
-        if (t == "int8f")   return "Int8f";
-        if (t == "int16f")  return "Int16f";
-        if (t == "int32f")  return "Int32f";
-        if (t == "uint8f")  return "UInt8f";
-        if (t == "uint16f") return "UInt16f";
-        if (t == "uint32f") return "UInt32f";
-        if (t == "float" || t == "float64") return "Float";
-        if (t == "float32") return "Float32";
-        if (t == "string")  return "String";
-        if (t == "bool")    return "Bool";
-        if (t == "char")    return "Char";
+        if (t == "int")     return "cpct::Int";
+        if (t == "int8")    return "cpct::Int8";
+        if (t == "int16")   return "cpct::Int16";
+        if (t == "int32")   return "cpct::Int32";
+        if (t == "int64")   return "cpct::Int64";
+        if (t == "uint")    return "cpct::UInt";
+        if (t == "uint8")   return "cpct::UInt8";
+        if (t == "uint16")  return "cpct::UInt16";
+        if (t == "uint32")  return "cpct::UInt32";
+        if (t == "uint64")  return "cpct::UInt64";
+        if (t == "int8f")   return "cpct::Int8f";
+        if (t == "int16f")  return "cpct::Int16f";
+        if (t == "int32f")  return "cpct::Int32f";
+        if (t == "uint8f")  return "cpct::UInt8f";
+        if (t == "uint16f") return "cpct::UInt16f";
+        if (t == "uint32f") return "cpct::UInt32f";
+        if (t == "float" || t == "float64") return "cpct::Float";
+        if (t == "float32") return "cpct::Float32";
+        if (t == "string")  return "cpct::String";
+        if (t == "bool")    return "cpct::Bool";
+        if (t == "char")    return "cpct::Char";
         if (t == "void")    return "void";
-        if (t == "intbig" || t == "bigint") return "Int64"; // approximate
+        if (t == "intbig" || t == "bigint") return "cpct::Int64";
 
-        // Array types: "int[]" → "Vector<Int>" (dynamic, since size unknown at translate time)
+        // Array types
         if (t.size() > 2 && t.substr(t.size() - 2) == "[]") {
             std::string elem = t.substr(0, t.size() - 2);
-            return "Vector<" + mapTypeInner(elem) + ">";
+            return "cpct::Vector<" + mapTypeInner(elem) + ">";
         }
 
         // vector<T>
         if (t.rfind("vector<", 0) == 0) {
             std::string inner = t.substr(7, t.size() - 8);
-            return "Vector<" + mapTypeInner(inner) + ">";
+            return "cpct::Vector<" + mapTypeInner(inner) + ">";
         }
 
         // array<T>
         if (t.rfind("array<", 0) == 0) {
             std::string inner = t.substr(6, t.size() - 7);
-            return "Vector<" + mapTypeInner(inner) + ">";
+            return "cpct::Vector<" + mapTypeInner(inner) + ">";
         }
 
         // dict
-        if (t == "dict") return "Dict";
+        if (t == "dict") return "cpct::Dict";
 
         // map<K,V>
         if (t.rfind("map<", 0) == 0) {
@@ -162,10 +162,9 @@ private:
             if (comma != std::string::npos) {
                 std::string k = inner.substr(0, comma);
                 std::string v = inner.substr(comma + 1);
-                // trim spaces
                 while (!k.empty() && k.back() == ' ') k.pop_back();
                 while (!v.empty() && v.front() == ' ') v = v.substr(1);
-                return "Map<" + mapTypeInner(k) + ", " + mapTypeInner(v) + ">";
+                return "cpct::Map<" + mapTypeInner(k) + ", " + mapTypeInner(v) + ">";
             }
         }
 
@@ -235,17 +234,17 @@ private:
             int dims = static_cast<int>(stmt->arrayDimSizes.size());
             if (dims == 1 && stmt->arrayDimSizes[0]) {
                 // Fixed size 1D: Array<T, N>
-                out_ << "Array<" << cppElem << ", ";
+                out_ << "cpct::Array<" << cppElem << ", ";
                 translateExpr(stmt->arrayDimSizes[0].get());
                 out_ << "> " << stmt->varName;
             } else if (dims == 1) {
                 // Size inferred 1D
-                out_ << "Vector<" << cppElem << "> " << stmt->varName;
+                out_ << "cpct::Vector<" << cppElem << "> " << stmt->varName;
             } else {
                 // Multi-dimensional: nest Vector<Vector<...>>
                 std::string type = cppElem;
                 for (int d = 0; d < dims; d++) {
-                    type = "Vector<" + type + ">";
+                    type = "cpct::Vector<" + type + ">";
                 }
                 out_ << type << " " << stmt->varName;
             }
@@ -261,7 +260,7 @@ private:
         // Dict with DictLiteral init → emit set() calls
         if (stmt->varType == "dict" && stmt->initExpr &&
             stmt->initExpr->kind == ExprKind::DictLiteral) {
-            out_ << "Dict " << stmt->varName << ";\n";
+            out_ << "cpct::Dict " << stmt->varName << ";\n";
             auto* init = stmt->initExpr.get();
             for (size_t i = 0; i < init->elements.size(); i++) {
                 emitIndent();
@@ -429,9 +428,9 @@ private:
     void translatePrint(const Stmt* stmt) {
         emitIndent();
         if (stmt->printNewline) {
-            out_ << "println(";
+            out_ << "cpct::println(";
         } else {
-            out_ << "print(";
+            out_ << "cpct::print(";
         }
         for (size_t i = 0; i < stmt->printArgs.size(); i++) {
             if (i > 0) out_ << ", ";
@@ -664,7 +663,7 @@ private:
         } else if (expr->op == TokenType::PLUS &&
                    expr->left->kind == ExprKind::StringLiteral) {
             // "literal" + x → String("literal") + x (const char* + can't use operator+)
-            out_ << "(String(\"" << escapeString(expr->left->strVal) << "\") + ";
+            out_ << "(cpct::String(\"" << escapeString(expr->left->strVal) << "\") + ";
             translateExpr(expr->right.get());
             out_ << ")";
         } else if (isComparisonOp(expr->op)) {
@@ -708,7 +707,7 @@ private:
             "string", "bool", "char"
         };
         if (castFuncs.count(name)) {
-            out_ << "to_" << name << "(";
+            out_ << "cpct::to_" << name << "(";
             for (size_t i = 0; i < expr->args.size(); i++) {
                 if (i > 0) out_ << ", ";
                 translateExpr(expr->args[i].get());
@@ -761,7 +760,7 @@ private:
 
         // print/println — handled by StmtKind::Print, but can appear as expression
         if (name == "print" || name == "println") {
-            out_ << name << "(";
+            out_ << "cpct::" << name << "(";
             for (size_t i = 0; i < expr->args.size(); i++) {
                 if (i > 0) out_ << ", ";
                 translateExpr(expr->args[i].get());
@@ -897,19 +896,19 @@ private:
     void wrapLiteral(const Expr* expr) {
         switch (expr->kind) {
             case ExprKind::StringLiteral:
-                out_ << "String(\"" << escapeString(expr->strVal) << "\")";
+                out_ << "cpct::String(\"" << escapeString(expr->strVal) << "\")";
                 break;
             case ExprKind::IntLiteral:
-                out_ << "Int(" << expr->intVal << ")";
+                out_ << "cpct::Int(" << expr->intVal << ")";
                 break;
             case ExprKind::FloatLiteral:
-                out_ << "Float(" << expr->floatVal << ")";
+                out_ << "cpct::Float(" << expr->floatVal << ")";
                 break;
             case ExprKind::CharLiteral:
-                out_ << "Char('" << escapeChar(static_cast<char>(expr->intVal)) << "')";
+                out_ << "cpct::Char('" << escapeChar(static_cast<char>(expr->intVal)) << "')";
                 break;
             case ExprKind::BoolLiteral:
-                out_ << "Bool(" << (expr->boolVal ? "true" : "false") << ")";
+                out_ << "cpct::Bool(" << (expr->boolVal ? "true" : "false") << ")";
                 break;
             default:
                 translateExpr(expr);
