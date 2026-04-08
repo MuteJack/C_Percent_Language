@@ -206,8 +206,21 @@ int main(int argc, char* argv[]) {
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
-        if (arg == "--cling-path" && i + 1 < argc) clingPath = argv[++i];
-        else if (arg == "--resource-dir" && i + 1 < argc) resourceDir = argv[++i];
+        if (arg == "--version" || arg == "-v") {
+            std::cout << "cpct-jit v0.1.0 (powered by Cling)" << std::endl;
+            return 0;
+        } else if (arg == "--help" || arg == "-h") {
+            std::cout << "Usage: cpct-jit [options]" << std::endl;
+            std::cout << "  --cling-path <path>     Path to cling.exe" << std::endl;
+            std::cout << "  --resource-dir <path>   Cling resource directory" << std::endl;
+            std::cout << "  --version, -v           Show version" << std::endl;
+            std::cout << "  --help, -h              Show this help" << std::endl;
+            return 0;
+        } else if (arg == "--cling-path" && i + 1 < argc) {
+            clingPath = argv[++i];
+        } else if (arg == "--resource-dir" && i + 1 < argc) {
+            resourceDir = argv[++i];
+        }
     }
 
     if (!fs::exists(clingPath)) {

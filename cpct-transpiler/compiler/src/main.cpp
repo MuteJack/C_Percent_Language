@@ -81,6 +81,9 @@ int main(int argc, char* argv[]) {
             runAfter = true;
         } else if (arg == "--emit-cpp") {
             emitCpp = true;
+        } else if (arg == "--version" || arg == "-v") {
+            std::cout << "cpct-compile v0.1.0" << std::endl;
+            return 0;
         } else if (arg == "--help" || arg == "-h") {
             printUsage();
             return 0;

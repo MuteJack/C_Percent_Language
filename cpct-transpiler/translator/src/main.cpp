@@ -35,6 +35,10 @@ static void printUsage() {
 }
 
 int main(int argc, char* argv[]) {
+    if (argc >= 2 && (std::string(argv[1]) == "--version" || std::string(argv[1]) == "-v")) {
+        std::cout << "cpct-translate v0.1.0" << std::endl;
+        return 0;
+    }
     if (argc < 2 || std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") {
         printUsage();
         return argc < 2 ? 1 : 0;
