@@ -18,23 +18,23 @@ set(LIB_SRC
     cpct-cpp-lib/cpct/data/type/bigint.cpp
 )
 
-# ---- cpct-translate (C% → C++ translator) ----
-add_executable(cpct-translate
+# ---- translate.exe (C% → C++ translator) ----
+add_executable(translate
     cpct-transpiler/translator/src/main.cpp
     ${CORE_SRC}
     ${LIB_SRC}
 )
-target_include_directories(cpct-translate PRIVATE cpct-core/src)
+target_include_directories(translate PRIVATE cpct-core/src)
 
-# ---- cpct-compile (translator + g++ compiler) ----
-add_executable(cpct-compile
+# ---- compile.exe (translate + g++ compiler) ----
+add_executable(compile
     cpct-transpiler/compiler/src/main.cpp
 )
 
-# ---- cpct-jit (Cling JIT REPL) ----
-add_executable(cpct-jit
+# ---- cpct.exe (unified CLI + JIT REPL) ----
+add_executable(cpct
     cpct-jit/src/cling_repl.cpp
     ${CORE_SRC}
     ${LIB_SRC}
 )
-target_include_directories(cpct-jit PRIVATE cpct-core/src)
+target_include_directories(cpct PRIVATE cpct-core/src)

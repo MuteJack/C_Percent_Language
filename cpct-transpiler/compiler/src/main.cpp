@@ -15,14 +15,12 @@
 
 namespace fs = std::filesystem;
 
-// Find cpct-translate.exe relative to working directory
+// Find translate.exe relative to working directory
 static std::string findTranslator() {
-    // Get directory of current executable
     std::string dir = fs::path(fs::current_path()).string();
-    std::string local = dir + "\\cpct-translate.exe";
+    std::string local = dir + "\\translate.exe";
     if (std::ifstream(local).good()) return local;
-    // Try without path (rely on PATH)
-    return "cpct-translate.exe";
+    return "translate.exe";
 }
 
 // Find cpct-cpp-lib path

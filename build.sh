@@ -2,9 +2,9 @@
 # C% Build Script
 # Usage:
 #   bash build.sh              # Build all
-#   bash build.sh translator   # Build translator only
-#   bash build.sh compiler     # Build compiler only
-#   bash build.sh jit          # Build Cling JIT REPL only
+#   bash build.sh translator   # Build translate.exe only
+#   bash build.sh compiler     # Build compile.exe only
+#   bash build.sh cpct         # Build cpct.exe only (unified CLI)
 
 set -e
 
@@ -14,46 +14,46 @@ CORE_SRC="cpct-core/src/lexer.cpp cpct-core/src/parser.cpp"
 LIB_SRC=$(sed 's|^|cpct-cpp-lib/|' cpct-cpp-lib/sources.txt)
 
 build_translator() {
-    echo "Building C% Translator..."
+    echo "Building translate.exe..."
     $CXX $CXXFLAGS \
         -I cpct-core/src \
-        -o cpct-translate.exe \
+        -o translate.exe \
         cpct-transpiler/translator/src/main.cpp \
         $CORE_SRC \
         $LIB_SRC
-    echo "Build successful: cpct-translate.exe"
+    echo "Build successful: translate.exe"
 }
 
 build_compiler() {
-    echo "Building C% Compiler..."
+    echo "Building compile.exe..."
     $CXX $CXXFLAGS \
-        -o cpct-compile.exe \
+        -o compile.exe \
         cpct-transpiler/compiler/src/main.cpp
-    echo "Build successful: cpct-compile.exe"
+    echo "Build successful: compile.exe"
 }
 
-build_jit() {
-    echo "Building C% Cling JIT REPL..."
+build_cpct() {
+    echo "Building cpct.exe..."
     $CXX $CXXFLAGS \
         -I cpct-core/src \
-        -o cpct-jit.exe \
+        -o cpct.exe \
         cpct-jit/src/cling_repl.cpp \
         $CORE_SRC \
         $LIB_SRC
-    echo "Build successful: cpct-jit.exe"
+    echo "Build successful: cpct.exe"
 }
 
 case "${1:-all}" in
     translator) build_translator ;;
     compiler)   build_compiler ;;
-    jit)        build_jit ;;
+    cpct)       build_cpct ;;
     all)
         build_translator
         build_compiler
-        build_jit
+        build_cpct
         ;;
     *)
-        echo "Usage: bash build.sh [translator|compiler|jit|all]"
+        echo "Usage: bash build.sh [translator|compiler|cpct|all]"
         exit 1
         ;;
 esac
