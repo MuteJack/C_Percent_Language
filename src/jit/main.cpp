@@ -15,14 +15,13 @@ namespace fs = std::filesystem;
 
 class ClingRepl {
 public:
-    ClingRepl(const std::string& clingPath, const std::string& resourceDir)
-        : clingPath_(clingPath), resourceDir_(resourceDir) {}
+    ClingRepl(const std::string& clingPath, const std::string& resourceDir,
+              const std::string& libPath = "")
+        : clingPath_(clingPath), resourceDir_(resourceDir), libPath_(libPath) {}
 
     void run() {
-        std::string cmd = clingPath_ + " --nologo"
-                          " -resource-dir \"" + resourceDir_ + "\""
-                          " -std=c++20";
-        cling_ = _popen(("\"" + cmd + "\"").c_str(), "w");
+        std::string cmd = buildClingCmd();
+        cling_ = popen(cmd.c_str(), "w");
         if (!cling_) { std::cerr << "Error: Cannot start cling" << std::endl; return; }
 
         send("#include \"cling/Interpreter/RuntimeOptions.h\"");
@@ -53,7 +52,7 @@ public:
             }
             processInput(source);
         }
-        send(".q"); _pclose(cling_);
+        send(".q"); pclose(cling_);
         std::cout << "Bye!" << std::endl;
     }
 
@@ -66,21 +65,28 @@ public:
         catch (const std::exception& e) { std::cerr << "Error: " << e.what() << std::endl; return; }
         std::string body = extractBody(cppCode);
         if (body.empty()) return;
-        std::string cmd = clingPath_ + " --nologo -resource-dir \"" + resourceDir_ + "\" -std=c++20";
-        cling_ = _popen(("\"" + cmd + "\"").c_str(), "w");
+        std::string cmd = buildClingCmd();
+        cling_ = popen(cmd.c_str(), "w");
         if (!cling_) { std::cerr << "Error: Cannot start cling" << std::endl; return; }
         send("#include \"cling/Interpreter/RuntimeOptions.h\"");
         send("cling::runtime::gClingOpts->AllowRedefinition = 0;");
         send("#include <cpct/types.h>"); send("#include <cpct/io.h>");
         send("#include <memory>"); send("#include <utility>");
         send("using namespace cpct;");
-        send(body); send(".q"); _pclose(cling_);
+        send(body); send(".q"); pclose(cling_);
     }
 
 private:
-    std::string clingPath_, resourceDir_;
+    std::string clingPath_, resourceDir_, libPath_;
     FILE* cling_ = nullptr;
     std::vector<std::string> funcDecls_;
+
+    std::string buildClingCmd() const {
+        std::string cmd = clingPath_ + " --nologo -std=c++20";
+        if (!resourceDir_.empty()) cmd += " -resource-dir \"" + resourceDir_ + "\"";
+        if (!libPath_.empty()) cmd += " -I \"" + libPath_ + "\"";
+        return cmd;
+    }
 
     void processInput(const std::string& cpcLine) {
         std::string trimmed = cpcLine;
@@ -146,14 +152,73 @@ int main(int argc, char* argv[]) {
         if (a == "--version" || a == "-v") { std::cout << "cpct-jit v0.1.0" << std::endl; return 0; }
         if (a == "--help" || a == "-h") { std::cout << "Usage: cpct-jit [script.cpc]" << std::endl; return 0; }
     }
-    std::string home = getenv("USERPROFILE") ? getenv("USERPROFILE") : "";
-    std::string clingPath = home + "/.conda/envs/cpct-cling/Library/bin/cling.exe";
-    std::string resourceDir = home + "/.conda/envs/cpct-cling/Library/lib/clang/18";
-    if (!fs::exists(clingPath)) {
-        std::cerr << "Error: cling not found. Install: conda create -n cpct-cling -c conda-forge cling" << std::endl;
-        return 1;
+    // Find cling: try multiple paths (conda Windows, conda Linux, snap, PATH)
+    std::string clingPath, resourceDir;
+    {
+#ifdef _WIN32
+        const char* homeVar = "USERPROFILE";
+#else
+        const char* homeVar = "HOME";
+#endif
+        std::string home = getenv(homeVar) ? getenv(homeVar) : "";
+        struct { std::string path; std::string resDir; } candidates[] = {
+            // conda Windows
+            { home + "/.conda/envs/cpct-cling/Library/bin/cling.exe",
+              home + "/.conda/envs/cpct-cling/Library/lib/clang/18" },
+            // conda Linux/Mac
+            { home + "/.conda/envs/cpct-cling/bin/cling",
+              home + "/.conda/envs/cpct-cling/lib/clang/18" },
+            // conda (miniconda/miniforge)
+            { home + "/miniconda3/envs/cpct-cling/bin/cling",
+              home + "/miniconda3/envs/cpct-cling/lib/clang/18" },
+            // snap (Linux)
+            { "/snap/cling/current/bin/cling",
+              "/snap/cling/current/lib/clang/18" },
+            // system (Linux)
+            { "/usr/bin/cling", "/usr/lib/clang/18" },
+        };
+        bool found = false;
+        for (auto& c : candidates) {
+            if (fs::exists(c.path)) {
+                clingPath = c.path;
+                resourceDir = c.resDir;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            // Try PATH
+            if (std::system("cling --version > /dev/null 2>&1") == 0 ||
+                std::system("cling --version > nul 2>&1") == 0) {
+                clingPath = "cling";
+                resourceDir = "";
+            } else {
+                std::cerr << "Error: cling not found." << std::endl;
+                std::cerr << "Install options:" << std::endl;
+                std::cerr << "  conda: conda create -n cpct-cling -c conda-forge cling" << std::endl;
+                std::cerr << "  snap:  sudo snap install cling" << std::endl;
+                return 1;
+            }
+        }
     }
-    ClingRepl repl(clingPath, resourceDir);
+    // Find cpct lib path (src/lib relative to executable)
+    std::string libPath;
+    {
+        std::string exePath = argv[0];
+        auto ls = exePath.find_last_of("/\\");
+        std::string dir = (ls != std::string::npos) ? exePath.substr(0, ls + 1) : "";
+        std::vector<std::string> libCandidates = {
+            dir + "src/lib",
+            dir + "../src/lib",
+            "src/lib",
+            "../src/lib",
+        };
+        for (auto& p : libCandidates) {
+            if (fs::exists(p + "/cpct/types.h")) { libPath = fs::canonical(p).string(); break; }
+        }
+    }
+
+    ClingRepl repl(clingPath, resourceDir, libPath);
     if (argc >= 2) repl.runFile(argv[1]); else repl.run();
     return 0;
 }

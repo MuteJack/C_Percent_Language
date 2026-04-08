@@ -1,23 +1,33 @@
-// cpct.exe — unified C% entry point.
+// cpct — unified C% entry point.
 // Delegates to cpct-jit, cpct-translate, cpct-compile based on options.
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <filesystem>
+#include <cstdlib>
+
+#ifdef _WIN32
 #include <windows.h>
+static std::wstring exeDirW; // wide string for Windows Unicode paths
 
-namespace fs = std::filesystem;
+static int run(const std::string& exe, const std::string& args = "") {
+    // Build wide command line using exeDirW
+    std::wstring wexe(exe.begin(), exe.end());
+    std::wstring wext(L".exe");
+    std::wstring wcmd = exeDirW + wexe + wext;
+    if (!args.empty()) {
+        wcmd += L" ";
+        std::wstring wargs(args.begin(), args.end());
+        wcmd += wargs;
+    }
 
-static std::string exeDir;
-
-static int runCommand(const std::string& cmd) {
-    STARTUPINFOA si = {};
+    STARTUPINFOW si = {};
     si.cb = sizeof(si);
     PROCESS_INFORMATION pi = {};
-    std::string cmdCopy = cmd;
-    if (!CreateProcessA(NULL, (LPSTR)cmdCopy.c_str(), NULL, NULL, TRUE,
-                        0, NULL, NULL, &si, &pi)) {
-        return -1;
+    if (!CreateProcessW(NULL, &wcmd[0], NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+        // Fallback to system()
+        std::string cmd = exe + ".exe";
+        if (!args.empty()) cmd += " " + args;
+        return std::system(cmd.c_str());
     }
     WaitForSingleObject(pi.hProcess, INFINITE);
     DWORD exitCode;
@@ -26,12 +36,18 @@ static int runCommand(const std::string& cmd) {
     CloseHandle(pi.hThread);
     return (int)exitCode;
 }
+#else
+static std::string exeDir;
 
-static std::string findExe(const std::string& name) {
-    std::string local = exeDir + name;
-    if (std::ifstream(local).good()) return local;
-    return name;
+static int run(const std::string& exe, const std::string& args = "") {
+    std::string full = exeDir + exe;
+    std::string cmd;
+    if (std::ifstream(full).good()) cmd = full;
+    else cmd = exe;
+    if (!args.empty()) cmd += " " + args;
+    return std::system(cmd.c_str());
 }
+#endif
 
 static void printUsage() {
     std::cout << "Usage: cpct [options] [script.cpc]" << std::endl;
@@ -45,15 +61,20 @@ static void printUsage() {
 }
 
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    wchar_t wpath[MAX_PATH];
+    GetModuleFileNameW(NULL, wpath, MAX_PATH);
+    exeDirW = wpath;
+    auto ls = exeDirW.find_last_of(L"/\\");
+    if (ls != std::wstring::npos) exeDirW = exeDirW.substr(0, ls + 1);
+    else exeDirW = L"";
+#else
     std::string exePath = argv[0];
-    auto lastSlash = exePath.find_last_of("/\\");
-    exeDir = (lastSlash != std::string::npos) ? exePath.substr(0, lastSlash + 1) : "";
+    auto ls = exePath.find_last_of("/\\");
+    exeDir = (ls != std::string::npos) ? exePath.substr(0, ls + 1) : "";
+#endif
 
-    // No args → REPL (delegate to cpct-jit.exe)
-    if (argc < 2) {
-        std::string jit = findExe("cpct-jit.exe");
-        return runCommand(jit);
-    }
+    if (argc < 2) return run("cpct-jit");
 
     std::string first = argv[1];
 
@@ -61,40 +82,17 @@ int main(int argc, char* argv[]) {
         std::cout << "cpct v0.1.0" << std::endl;
         return 0;
     }
+    if (first == "--help" || first == "-h") { printUsage(); return 0; }
 
-    if (first == "--help" || first == "-h") {
-        printUsage();
-        return 0;
-    }
+    auto buildArgs = [&](int start) {
+        std::string args;
+        for (int i = start; i < argc; i++) { if (!args.empty()) args += " "; args += argv[i]; }
+        return args;
+    };
 
-    // --translate: delegate to cpct-translate.exe
-    if (first == "--translate") {
-        std::string exe = findExe("cpct-translate.exe");
-        std::string cmd = exe;
-        for (int i = 2; i < argc; i++) { cmd += " "; cmd += argv[i]; }
-        return runCommand(cmd);
-    }
+    if (first == "--translate") return run("cpct-translate", buildArgs(2));
+    if (first == "--compile")  return run("cpct-compile", buildArgs(2));
+    if (first == "--run")      return run("cpct-compile", buildArgs(2) + " --run");
 
-    // --compile: delegate to cpct-compile.exe
-    if (first == "--compile") {
-        std::string exe = findExe("cpct-compile.exe");
-        std::string cmd = exe;
-        for (int i = 2; i < argc; i++) { cmd += " "; cmd += argv[i]; }
-        return runCommand(cmd);
-    }
-
-    // --run: delegate to cpct-compile.exe --run
-    if (first == "--run") {
-        std::string exe = findExe("cpct-compile.exe");
-        std::string cmd = exe;
-        for (int i = 2; i < argc; i++) { cmd += " "; cmd += argv[i]; }
-        cmd += " --run";
-        return runCommand(cmd);
-    }
-
-    // Default: JIT execute file (delegate to cpct-jit.exe with file arg)
-    std::string jit = findExe("cpct-jit.exe");
-    std::string cmd = jit;
-    for (int i = 1; i < argc; i++) { cmd += " "; cmd += argv[i]; }
-    return runCommand(cmd);
+    return run("cpct-jit", buildArgs(1));
 }

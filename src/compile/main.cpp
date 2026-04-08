@@ -1,8 +1,5 @@
 // C% Compiler CLI — translates .cpc to C++ via cpct-translate, then compiles with g++.
-// Usage:
-//   cpct-compile input.cpc -o output      Translate + compile
-//   cpct-compile input.cpc --run          Translate + compile + run
-//   cpct-compile input.cpc --emit-cpp     Also keep the generated .cpp
+// Cross-platform: Windows, Linux, macOS.
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -11,16 +8,34 @@
 #include <filesystem>
 #include <cstdlib>
 #include <cstdio>
+#ifdef _WIN32
 #include <windows.h>
+#endif
 
 namespace fs = std::filesystem;
 
-// Find cpct-translate.exe relative to working directory
-static std::string findTranslator() {
-    std::string dir = fs::path(fs::current_path()).string();
-    std::string local = dir + "\\cpct-translate.exe";
-    if (std::ifstream(local).good()) return local;
-    return "cpct-translate.exe";
+#ifdef _WIN32
+static const char* EXE_EXT = ".exe";
+#else
+static const char* EXE_EXT = "";
+#endif
+
+#ifdef _WIN32
+static std::wstring exeDirW;
+#endif
+
+// Find cpct-translate relative to this executable (used on Unix)
+[[maybe_unused]] static std::string findTranslator() {
+    std::string name = std::string("cpct-translate") + EXE_EXT;
+    std::vector<std::string> candidates = {
+        "./" + name,
+        name,
+        "../" + name,
+    };
+    for (auto& p : candidates) {
+        if (std::ifstream(p).good()) return p;
+    }
+    return name;
 }
 
 // Find lib path (src/lib)
@@ -61,6 +76,15 @@ static void printUsage() {
 }
 
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    wchar_t wpath[MAX_PATH];
+    GetModuleFileNameW(NULL, wpath, MAX_PATH);
+    exeDirW = wpath;
+    auto wls = exeDirW.find_last_of(L"/\\");
+    if (wls != std::wstring::npos) exeDirW = exeDirW.substr(0, wls + 1);
+    else exeDirW = L"";
+#endif
+
     if (argc < 2) {
         printUsage();
         return 1;
@@ -101,54 +125,71 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // 1. Translate: cpct-cpct-translate.exe input.cpc temp.cpp
-    std::string translator = findTranslator();
-    std::string tempCpp = (fs::temp_directory_path() / "_cpct_tmp.cpp").string();
-
-    // Translate using cpct-translate — capture stdout via pipe
-    SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
-    HANDLE hReadPipe, hWritePipe;
-    CreatePipe(&hReadPipe, &hWritePipe, &sa, 0);
-    SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
-
-    STARTUPINFOA si = {};
-    si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESTDHANDLES;
-    si.hStdOutput = hWritePipe;
-    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-
-    PROCESS_INFORMATION pi = {};
-    std::string translateCmd = translator + " " + inputFile;
-    if (!CreateProcessA(NULL, (LPSTR)translateCmd.c_str(), NULL, NULL, TRUE,
-                        0, NULL, NULL, &si, &pi)) {
-        std::cerr << "Translation failed: cannot run cpct-translate" << std::endl;
-        return 1;
-    }
-    CloseHandle(hWritePipe);
-
-    // Read translated C++ from pipe
+    // 1. Translate: capture stdout from cpct-translate
     std::string cppCode;
-    char buf[4096];
-    DWORD bytesRead;
-    while (ReadFile(hReadPipe, buf, sizeof(buf) - 1, &bytesRead, NULL) && bytesRead > 0) {
-        buf[bytesRead] = '\0';
-        cppCode += buf;
-    }
-    CloseHandle(hReadPipe);
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    {
+#ifdef _WIN32
+        // Windows: use CreateProcessW with pipe to handle Unicode paths
+        std::wstring wcmd = exeDirW + L"cpct-translate.exe " +
+            std::wstring(inputFile.begin(), inputFile.end());
 
-    DWORD exitCode;
-    GetExitCodeProcess(pi.hProcess, &exitCode);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
+        SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
+        HANDLE hReadPipe, hWritePipe;
+        CreatePipe(&hReadPipe, &hWritePipe, &sa, 0);
+        SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
 
-    int ret;
-    if (exitCode != 0 || cppCode.empty()) {
-        std::cerr << "Translation failed." << std::endl;
-        return 1;
+        STARTUPINFOW si = {};
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESTDHANDLES;
+        si.hStdOutput = hWritePipe;
+        si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+        si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+
+        PROCESS_INFORMATION pi = {};
+        if (!CreateProcessW(NULL, &wcmd[0], NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+            std::cerr << "Translation failed: cannot run cpct-translate" << std::endl;
+            CloseHandle(hReadPipe); CloseHandle(hWritePipe);
+            return 1;
+        }
+        CloseHandle(hWritePipe);
+
+        char buf[4096];
+        DWORD bytesRead;
+        while (ReadFile(hReadPipe, buf, sizeof(buf) - 1, &bytesRead, NULL) && bytesRead > 0) {
+            buf[bytesRead] = '\0';
+            cppCode += buf;
+        }
+        CloseHandle(hReadPipe);
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        DWORD exitCode;
+        GetExitCodeProcess(pi.hProcess, &exitCode);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        if (exitCode != 0 || cppCode.empty()) {
+            std::cerr << "Translation failed." << std::endl;
+            return 1;
+        }
+#else
+        // Unix: use popen
+        std::string translator = findTranslator();
+        std::string translateCmd = translator + " \"" + inputFile + "\"";
+        FILE* pipe = popen(translateCmd.c_str(), "r");
+        if (!pipe) {
+            std::cerr << "Translation failed: cannot run cpct-translate" << std::endl;
+            return 1;
+        }
+        char buf[4096];
+        while (fgets(buf, sizeof(buf), pipe)) cppCode += buf;
+        int pret = pclose(pipe);
+        if (pret != 0 || cppCode.empty()) {
+            std::cerr << "Translation failed." << std::endl;
+            return 1;
+        }
+#endif
     }
+
     // Write translated code to temp file
+    std::string tempCpp = (fs::temp_directory_path() / "_cpct_tmp.cpp").string();
     {
         std::ofstream f(tempCpp);
         f << cppCode;
@@ -163,10 +204,10 @@ int main(int argc, char* argv[]) {
         std::cerr << "Emitted: " << emitPath << std::endl;
     }
 
-    // 2. Compile: g++ temp.cpp -o output.exe
+    // 2. Compile
     bool isTempExe = false;
     if (outputExe.empty()) {
-        outputExe = (fs::temp_directory_path() / "_cpct_tmp.exe").string();
+        outputExe = (fs::temp_directory_path() / ("_cpct_tmp" + std::string(EXE_EXT))).string();
         isTempExe = true;
     }
 
@@ -179,7 +220,7 @@ int main(int argc, char* argv[]) {
                              " " + libSources +
                              " -o \"" + outputExe + "\"";
 
-    ret = std::system(compileCmd.c_str());
+    int ret = std::system(compileCmd.c_str());
     std::remove(tempCpp.c_str());
 
     if (ret != 0) {

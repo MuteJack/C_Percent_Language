@@ -1,55 +1,63 @@
 #!/usr/bin/env bash
-# C% Build Script
+# C% Build Script (cross-platform: Windows MSYS2, Linux, macOS)
 # Usage:
 #   bash build.sh              # Build all
-#   bash build.sh translator   # Build cpct-translate.exe only
-#   bash build.sh compiler     # Build cpct-compile.exe only
-#   bash build.sh jit          # Build cpct-jit.exe only
-#   bash build.sh cpct         # Build cpct.exe only
+#   bash build.sh translator   # Build cpct-translate only
+#   bash build.sh compiler     # Build cpct-compile only
+#   bash build.sh jit          # Build cpct-jit only
+#   bash build.sh cpct         # Build cpct only
 
 set -e
 
-CXX="/mingw64/bin/g++"
+# Platform detection
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "mingw"* || "$OSTYPE" == "cygwin" ]]; then
+    CXX="/mingw64/bin/g++"
+    EXT=".exe"
+else
+    CXX="g++"
+    EXT=""
+fi
+
 CXXFLAGS="-std=c++20 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare"
 CORE_SRC="src/core/lexer.cpp src/core/parser.cpp"
 LIB_SRC=$(sed 's|^|src/lib/|' src/lib/sources.txt)
 
 build_translator() {
-    echo "Building cpct-translate.exe..."
+    echo "Building cpct-translate${EXT}..."
     $CXX $CXXFLAGS \
         -I src/core \
-        -o cpct-translate.exe \
+        -o "cpct-translate${EXT}" \
         src/translate/main.cpp \
         $CORE_SRC \
         $LIB_SRC
-    echo "Build successful: cpct-translate.exe"
+    echo "Build successful: cpct-translate${EXT}"
 }
 
 build_compiler() {
-    echo "Building cpct-compile.exe..."
+    echo "Building cpct-compile${EXT}..."
     $CXX $CXXFLAGS \
-        -o cpct-compile.exe \
+        -o "cpct-compile${EXT}" \
         src/compile/main.cpp
-    echo "Build successful: cpct-compile.exe"
+    echo "Build successful: cpct-compile${EXT}"
 }
 
 build_jit() {
-    echo "Building cpct-jit.exe..."
+    echo "Building cpct-jit${EXT}..."
     $CXX $CXXFLAGS \
         -I src/core \
-        -o cpct-jit.exe \
+        -o "cpct-jit${EXT}" \
         src/jit/main.cpp \
         $CORE_SRC \
         $LIB_SRC
-    echo "Build successful: cpct-jit.exe"
+    echo "Build successful: cpct-jit${EXT}"
 }
 
 build_cpct() {
-    echo "Building cpct.exe..."
+    echo "Building cpct${EXT}..."
     $CXX $CXXFLAGS \
-        -o cpct.exe \
+        -o "cpct${EXT}" \
         src/main.cpp
-    echo "Build successful: cpct.exe"
+    echo "Build successful: cpct${EXT}"
 }
 
 case "${1:-all}" in
