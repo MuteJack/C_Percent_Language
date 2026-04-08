@@ -25,6 +25,8 @@ public:
         cling_ = _popen(("\"" + cmd + "\"").c_str(), "w");
         if (!cling_) { std::cerr << "Error: Cannot start cling" << std::endl; return; }
 
+        send("#include \"cling/Interpreter/RuntimeOptions.h\"");
+        send("cling::runtime::gClingOpts->AllowRedefinition = 0;");
         send("#include <cpct/types.h>");
         send("#include <cpct/io.h>");
         send("#include <memory>");
@@ -67,6 +69,8 @@ public:
         std::string cmd = clingPath_ + " --nologo -resource-dir \"" + resourceDir_ + "\" -std=c++20";
         cling_ = _popen(("\"" + cmd + "\"").c_str(), "w");
         if (!cling_) { std::cerr << "Error: Cannot start cling" << std::endl; return; }
+        send("#include \"cling/Interpreter/RuntimeOptions.h\"");
+        send("cling::runtime::gClingOpts->AllowRedefinition = 0;");
         send("#include <cpct/types.h>"); send("#include <cpct/io.h>");
         send("#include <memory>"); send("#include <utility>");
         send("using namespace cpct;");
