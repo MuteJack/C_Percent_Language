@@ -17,14 +17,14 @@ print(arr);          // [5, 4, 3, 1, 1]
 
 #### 타입별 정렬 기준
 
-| 원소 타입 | 정렬 기준 |
-| --------- | --------- |
-| 정수 (`int`, `int8`~`int64`, `uint`~`uint64`) | 숫자 크기 |
-| 실수 (`float`, `float32`, `float64`) | 숫자 크기 |
-| `bigint`, `intbig` | 숫자 크기 |
-| `char` | ASCII 값 |
-| `string` | 사전순 (lexicographic) |
-| `bool` | `false`(0) < `true`(1) |
+| 원소 타입                                                | 정렬 기준                  |
+| -------------------------------------------------------- | -------------------------- |
+| 정수 (`int`, `int8`~`int64`, `uint`~`uint64`) | 숫자 크기                  |
+| 실수 (`float`, `float32`, `float64`)               | 숫자 크기                  |
+| `bigint`, `intbig`                                   | 숫자 크기                  |
+| `char`                                                 | ASCII 값                   |
+| `string`                                               | 사전순 (lexicographic)     |
+| `bool`                                                 | `false`(0) < `true`(1) |
 
 #### 예시
 
@@ -56,16 +56,16 @@ matrix.sort();       // Error: 다차원 배열은 직접 정렬 불가
 
 ---
 
-## 딕셔너리 정렬
+## 딕셔너리/Map 정렬
 
-딕셔너리 정렬은 **제자리(in-place)**로 키-값 쌍의 순서를 재배치한다.
+딕셔너리, Map 정렬은 **제자리(in-place)**로 키-값 쌍의 순서를 재배치한다.
 
 ### `d.sortkey(bool descending = false)` / `d.sortk(...)`
 
 키 기준으로 정렬한다.
 
 ```
-dict<string, int> d = {"banana": 2, "apple": 1, "cherry": 3};
+dict d = {"banana": 2, "apple": 1, "cherry": 3};
 d.sortkey();
 print(d);            // {"apple": 1, "banana": 2, "cherry": 3}
 
@@ -74,7 +74,7 @@ print(d);            // {"cherry": 3, "banana": 2, "apple": 1}
 ```
 
 ```
-dict<int, string> d = {3: "c", 1: "a", 2: "b"};
+dict d = {3: "c", 1: "a", 2: "b"};
 d.sortk();
 print(d);            // {1: "a", 2: "b", 3: "c"}
 ```
@@ -86,7 +86,7 @@ print(d);            // {1: "a", 2: "b", 3: "c"}
 값 기준으로 정렬한다. **안정 정렬(stable sort)** 사용.
 
 ```
-dict<string, int> scores = {"alice": 87, "bob": 95, "charlie": 87};
+dict scores = {"alice": 87, "bob": 95, "charlie": 87};
 scores.sortval();
 print(scores);       // {"alice": 87, "charlie": 87, "bob": 95}
 
@@ -102,7 +102,7 @@ print(scores);       // {"bob": 95, "alice": 87, "charlie": 87}
 값 기준 1차 정렬 후, 같은 값에 대해 키 기준 2차 정렬을 수행한다. 항상 결정적(deterministic).
 
 ```
-dict<string, int> scores = {"charlie": 87, "alice": 87, "bob": 95};
+dict scores = {"charlie": 87, "alice": 87, "bob": 95};
 scores.sortvk();
 print(scores);       // {"alice": 87, "charlie": 87, "bob": 95}
 // 87이 같으므로 키 사전순: "alice" < "charlie"
@@ -127,9 +127,9 @@ print(scores);       // {"bob": 95, "charlie": 87, "alice": 87}
 
 ## 메서드 별칭 요약
 
-| 메서드 | 별칭 | 대상 |
-| ------ | ---- | ---- |
-| `sort()` | - | 배열 |
-| `sortkey()` | `sortk()` | dict |
-| `sortval()` | `sortv()` | dict |
-| `sortvk()` | - | dict |
+| 메서드        | 별칭        | 대상 |
+| ------------- | ----------- | ---- |
+| `sort()`    | -           | 배열 |
+| `sortkey()` | `sortk()` | dict, map |
+| `sortval()` | `sortv()` | dict, map |
+| `sortvk()`  | -           | dict, map |

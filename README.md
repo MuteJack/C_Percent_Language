@@ -1,37 +1,28 @@
 # C% (C Percent)
 
-C%는 C/C++ 스타일 문법에 현대적 편의 기능을 더한 실험적인 프로그래밍 언어입니다.
+C%는 C/C++ 스타일 문법에 현대적 편의 기능을 더한 프로그래밍 언어입니다.
 `#include`나 `main()` 없이 바로 코드를 작성할 수 있으며,
-명시적 타입 크기, F-string, 임의 정밀도 정수 등 다양한 편의 기능을 제공합니다.
+C++ 트랜스파일링을 기반으로 PC부터 임베디드까지 폭넓은 플랫폼을 지원합니다.
 
 ## 추구 방향
 
-- C/C++ 스타일의 문법과 성능
-- Python, MATLAB과 같은 편의성, 안정성의 혼합
+- C/C++ 스타일의 문법과 네이티브 성능
+- Python, MATLAB과 같은 편의성과 안정성
 - 명시적이고 예측 가능한 타입 시스템
-- 최소한의 보일러플레이트로 바로 실행 가능한 코드
+- C++ 트랜스파일링을 통한 크로스 플랫폼 지원 (PC, Arduino, ARM 등)
 
 ## 특징
 
 - 기본 라이브러리 내장: `string`, `print`, `len` 등 별도 `#include` 불필요
 - 정수/실수 크기를 타입명에 명시: `int8`, `int16`, `int64`, `float32`, `float64`
+- Fast 정수 타입: `int8f`, `int16f`, `int32f` (플랫폼 최적 크기)
 - 임의 정밀도 정수 내장: `intbig` (자동 승격), `bigint` (항상 임의 정밀도)
-- Python 스타일 F-string, Raw 문자열 지원: `f"..."`, `r"..."`
+- 변수 한정자: `const`, `static`, `heap`, `let` (소유권 이전), `ref` (참조)
+- Python 스타일 F-string, Raw 문자열: `f"..."`, `r"..."`
 - 연쇄 비교: `0 < x < 10`
 - 범위 기반 for: `for (0 <= i < 10) { ... }`
-- REPL 모드 지원 (cpct-interpreter)
-
-----------------
-
-## 사용법 (인터프리터)
-
-```bash
-# REPL 모드
-./cpct.exe
-
-# 파일 실행
-./cpct.exe examples/hello.cpc
-```
+- `main()` 있으면 진입점, 없으면 스크립트 모드
+- `#define` / `#undef` 전처리기 지원
 
 ## 예제
 
@@ -66,55 +57,116 @@ for (0 <= i < 10) {
 - [데이터 타입](docs/datatype.md)
 - [연산자](docs/operators.md)
 - [자료구조](docs/datastructure.md)
+- [C/C++와의 차이점](docs/diff_from_cpp.md)
 
------------------------------------
+---
 
-## 개발 환경
-권장 환경: Windows 10 or Later, MSYS2
+## 설치
 
-- C++17 이상을 지원하는 컴파일러
-  - **Windows**: MSYS2 (MinGW-w64) 또는 Visual Studio 2017+
-  - **Linux / macOS**: GCC 7+ 또는 Clang 5+
+### 요구사항
 
-- CMake 3.15+ (선택)
+- **Windows**: MSYS2 (MinGW-w64)
+- **Linux / macOS**: GCC 9+ 또는 Clang 10+
+- C++17 이상 (인터프리터), C++20 이상 (트랜스파일러)
 
-## 빌드
-
-### Windows (MSYS2)
+### 빌드
 
 ```bash
-# MSYS2 MinGW 64-bit 터미널에서 실행
-bash build.sh
-```
-
-### Linux / macOS
-
-```bash
+# 인터프리터 빌드
 bash build.sh
 
-# 또는 직접 빌드
-g++ -std=c++17 -O2 -Wall -Wextra \
-    cpct-interpreter/src/main.cpp \
-    cpct-interpreter/src/lexer.cpp \
-    cpct-interpreter/src/parser.cpp \
-    cpct-interpreter/src/interpreter.cpp \
-    cpct-interpreter/src/bigint.cpp \
-    -Icpct-interpreter/src -o cpct
+# 트랜스파일러 빌드
+g++ -std=c++20 -I cpct-core/src \
+    -o cpct-translate.exe \
+    cpct-transpiler/src/main.cpp \
+    cpct-core/src/lexer.cpp \
+    cpct-core/src/parser.cpp \
+    cpct-interpreter/src/bigint.cpp
 ```
 
-### CMake (공통)
+### Cling JIT REPL (선택)
+
+Cling JIT는 C++ JIT 컴파일러를 통해 네이티브 속도로 인터랙티브 실행을 제공합니다.
+conda 설치가 필요합니다.
 
 ```bash
-cmake -B build && cmake --build build
+# 1. conda 환경 생성 + cling 설치
+conda create -n cpct-cling -c conda-forge cling -y
+
+# 2. cpct 라이브러리를 cling include 경로에 복사
+cp -r cpct-cpp-lib/cpct ~/.conda/envs/cpct-cling/Library/include/
+
+# 3. Cling JIT REPL 빌드
+g++ -std=c++20 -I cpct-core/src \
+    -o cpct-cling.exe \
+    cpct-jit/src/cling_repl.cpp \
+    cpct-core/src/lexer.cpp \
+    cpct-core/src/parser.cpp \
+    cpct-interpreter/src/bigint.cpp
 ```
+
+---
+
+## 사용법
+
+### 인터프리터 (의존성 없음)
+
+```bash
+# REPL 모드
+./cpct.exe
+
+# 파일 실행
+./cpct.exe script.cpc
+
+# 플랫폼 지정 (fast 타입 크기 변경)
+./cpct.exe --platform=avr script.cpc
+```
+
+### 트랜스파일러 (C++ 컴파일러 필요)
+
+```bash
+# C% → C++ 변환
+./cpct-translate.exe script.cpc > output.cpp
+
+# C++ 컴파일
+g++ -std=c++20 -I cpct-cpp-lib output.cpp \
+    cpct-cpp-lib/cpct/data/type/bigint.cpp \
+    -o output.exe
+```
+
+### Cling JIT REPL (conda + cling 필요)
+
+```bash
+./cpct-cling.exe
+c%> int x = 42;
+c%> println("x =", x);
+x =42
+c%> vector<int> v = [1, 2, 3];
+c%> v.push(4);
+c%> println(v);
+[1, 2, 3, 4]
+```
+
+---
+
+## 실행 방식 비교
+
+| 방식 | 실행 파일 | 속도 | 변수 유지 | 의존성 |
+| ---- | --------- | ---- | --------- | ------ |
+| 인터프리터 | `cpct.exe` | 보통 (트리워킹) | O (REPL) | 없음 |
+| 트랜스파일러 | `cpct-translate.exe` + g++ | 빠름 (네이티브) | - (파일 단위) | g++ |
+| Cling JIT | `cpct-cling.exe` | 빠름 (JIT) | O (REPL) | conda + cling |
 
 ## 프로젝트 구조
 
 ```
-cpct-interpreter/   인터프리터 소스 코드
-cpct-translater/    C% to C++ 번역기 (개발 예정)
-cpct-compiler/      컴파일러 (개발 고려중)
-cpct-vscode/        VSCode 확장 (syntax 등)
+cpct-core/          공유 파싱 인프라 (lexer, parser, AST, preprocessor)
+cpct-cpp-lib/       C++ 타입 라이브러리 (트랜스파일된 코드용)
+cpct-interpreter/   트리워킹 인터프리터
+cpct-transpiler/    C% → C++ 변환기 (translator, analyzer, compiler)
+cpct-jit/           Cling JIT REPL
+cpct-vscode/        VSCode 확장 (syntax highlighting)
+tests/              라이브러리 테스트
 docs/               사용자 문서
 docs_dev/           개발자 문서
 examples/           C% 예제 코드

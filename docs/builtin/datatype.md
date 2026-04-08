@@ -33,8 +33,8 @@ print(type(m));          // "int[][]"
 
 ```
 int x = 10;
-print(size(x));          // 4
-print(x.size());         // 4  (메서드 스타일)
+print(size(x));          // 플랫폼 의존 (기본 8)
+print(x.size());         // 플랫폼 의존 (기본 8, --platform으로 변경)
 
 int64 y = 100;
 print(y.size());         // 8
@@ -62,7 +62,8 @@ print(arr.size());       // 12 (4 bytes × 3)
 | `bool` | 1 |
 | `int8`, `char` | 1 |
 | `int16` | 2 |
-| `int`, `int32` | 4 |
+| `int` (`int16f`) | 플랫폼 의존 (기본 8, `--platform`으로 변경) |
+| `int32` | 4 |
 | `int64` | 8 |
 | `intbig` | 8 (int64 범위) 또는 BigInt 바이트 수 |
 | `bigint` | BigInt 바이트 수 |
@@ -118,8 +119,8 @@ print(shape(t));         // [2, 3, 4]
 타입의 최대/최소 표현 가능 값을 반환한다.
 
 ```
-print(int.max());        // 2147483647
-print(int.min());        // -2147483648
+print(int.max());        // 플랫폼 의존 (기본: int64 범위)
+print(int.min());        // 플랫폼 의존 (기본: int64 범위)
 print(int8.max());       // 127
 print(int8.min());       // -128
 print(int16.max());      // 32767
@@ -131,7 +132,7 @@ print(float.max());      // 1.79769e+308
 print(char.max());       // 127
 print(bool.max());       // 1
 
-print(uint.max());       // 4294967295
+print(uint.max());       // 플랫폼 의존 (기본: uint64 범위)
 print(uint8.max());      // 255
 print(uint16.max());     // 65535
 print(uint32.max());     // 4294967295
@@ -145,11 +146,13 @@ print(uint.min());       // 0
 | ---- | ------- | ------- |
 | `int8` | 127 | -128 |
 | `int16` | 32767 | -32768 |
-| `int`, `int32` | 2147483647 | -2147483648 |
+| `int` (`int16f`) | 플랫폼 의존 | 플랫폼 의존 |
+| `int32` | 2147483647 | -2147483648 |
 | `int64` | 9223372036854775807 | -9223372036854775808 |
 | `uint8` | 255 | 0 |
 | `uint16` | 65535 | 0 |
-| `uint`, `uint32` | 4294967295 | 0 |
+| `uint` (`uint16f`) | 플랫폼 의존 | 0 |
+| `uint32` | 4294967295 | 0 |
 | `uint64` | 18446744073709551615 (BigInt) | 0 |
 | `float32` | 3.40282e+38 | -3.40282e+38 |
 | `float`, `float64` | 1.79769e+308 | -1.79769e+308 |
@@ -167,7 +170,7 @@ print(uint.min());       // 0
 ### 정수 캐스트
 
 ```
-print(int(3.7));         // 3 (소수점 절삭, int32 범위 wrap-around)
+print(int(3.7));         // 3 (소수점 절삭, fast 타입은 오버플로 시 에러)
 print(int8(200));        // -56 (wrap-around)
 print(int16(40000));     // -25536 (wrap-around)
 print(int32(3.14));      // 3
@@ -179,7 +182,8 @@ print(bigint(42));       // BigInt 42
 - `float` → 정수: 소수점 이하 절삭
 - `string` → 정수: 숫자 문자열 파싱
 - `bool` → 정수: `true` = 1, `false` = 0
-- sized 정수(`int`, `int8`~`int64`): 범위 초과 시 wrap-around
+- 고정 크기 정수(`int8`~`int64`): 범위 초과 시 wrap-around
+- fast 정수(`int`, `int8f`~`int32f`): 범위 초과 시 런타임 에러
 - `intbig`: int64 범위 유지, 초과 시 BigInt
 - `bigint`: 항상 BigInt로 변환
 - `uint`, `uint8`~`uint64`: unsigned 범위로 wrap-around
