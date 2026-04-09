@@ -28,11 +28,15 @@ namespace detail {
 template<typename Base, typename Exp>
 auto pow(Base base, Exp exp) {
     if constexpr (detail::is_integral_like_v<Base> && detail::is_integral_like_v<Exp>) {
+        // Negative exponent: use float path
+        if (exp < 0) {
+            return static_cast<Base>(std::pow(
+                static_cast<double>(base),
+                static_cast<double>(exp)
+            ));
+        }
         // Integer exponentiation
         using R = decltype(base * base); // result type
-        if (exp < 0) {
-            throw std::runtime_error("Negative exponent in integer pow");
-        }
         R result = 1;
         R b = base;
         auto e = static_cast<int64_t>(exp);

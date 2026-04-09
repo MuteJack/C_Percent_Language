@@ -4,6 +4,7 @@
 // Auto-demotes back to int64_t when value fits again.
 // Unlike fixed types, arithmetic operators are required here to detect overflow.
 #pragma once
+#include "overflow.h"
 #include "bigint.h"
 #include <string>
 #include <iostream>

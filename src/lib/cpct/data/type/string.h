@@ -81,6 +81,13 @@ public:
 
     std::vector<String> split(const String& sep) const {
         std::vector<String> result;
+        if (sep.val_.empty()) {
+            // Split into individual characters
+            for (char c : val_) {
+                result.push_back(String(std::string(1, c)));
+            }
+            return result;
+        }
         size_t start = 0, end;
         while ((end = val_.find(sep.val_, start)) != std::string::npos) {
             result.push_back(String(val_.substr(start, end - start)));
@@ -156,10 +163,18 @@ private:
 };
 
 // Free function: join — accepts std::vector or any iterable with .size() and []
+namespace detail {
+    template<typename C>
+    auto container_size(const C& c) -> decltype(c.len()) { return c.len(); }
+    template<typename T, typename A>
+    size_t container_size(const std::vector<T, A>& c) { return c.size(); }
+}
+
 template<typename Container>
 inline String join(const String& sep, const Container& parts) {
     std::string result;
-    for (size_t i = 0; i < parts.size(); i++) {
+    size_t n = detail::container_size(parts);
+    for (size_t i = 0; i < n; i++) {
         if (i > 0) result += sep.str();
         result += parts[i].str();
     }

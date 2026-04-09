@@ -1,5 +1,6 @@
 // cpct — unified C% entry point.
 // Delegates to cpct-jit, cpct-translate, cpct-compile based on options.
+#include "core/version.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -79,7 +80,9 @@ int main(int argc, char* argv[]) {
     std::string first = argv[1];
 
     if (first == "--version" || first == "-v") {
-        std::cout << "cpct v0.1.0" << std::endl;
+        std::cout << "cpct v" CPCT_VERSION;
+        if (CPCT_NIGHTLY) std::cout << "-nightly-" CPCT_BUILD_TIME "-" CPCT_GIT_HASH;
+        std::cout << std::endl;
         return 0;
     }
     if (first == "--help" || first == "-h") { printUsage(); return 0; }

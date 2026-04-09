@@ -4,6 +4,7 @@
 //             arithmetic (+, -, *, / schoolbook long division, %), comparison operators.
 // When small_ flag is true, uses fast int64_t arithmetic.
 // Overflow is detected via __builtin_*_overflow and triggers promotion to big representation.
+#include "overflow.h"
 #include "bigint.h"
 #include <sstream>
 #include <cassert>

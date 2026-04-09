@@ -2,5 +2,12 @@
 /.*
 !.gitignore
 
+# Dependencies
+/tools/*
+
 # Build
-/*.exe
+*.exe
+/build
+
+/cpct*
+!/cpct-vscode

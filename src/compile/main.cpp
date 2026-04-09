@@ -1,5 +1,6 @@
 // C% Compiler CLI — translates .cpc to C++ via cpct-translate, then compiles with g++.
 // Cross-platform: Windows, Linux, macOS.
+#include "../core/version.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -104,7 +105,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--emit-cpp") {
             emitCpp = true;
         } else if (arg == "--version" || arg == "-v") {
-            std::cout << "cpct-compile v0.1.0" << std::endl;
+            std::cout << "cpct-compile v" CPCT_VERSION << std::endl;
             return 0;
         } else if (arg == "--help" || arg == "-h") {
             printUsage();
