@@ -25,20 +25,10 @@ add_compile_definitions(CPCT_GIT_HASH="${GIT_HASH}" CPCT_BUILD_TIME="${BUILD_TIM
 set(CORE_SRC src/core/lexer.cpp src/core/parser.cpp)
 set(LIB_SRC src/lib/cpct/data/type/bigint.cpp)
 
-# cpct.exe — unified entry point
-add_executable(cpct src/main.cpp)
-
-# cpct-translate.exe
-add_executable(cpct-translate src/translate/main.cpp ${CORE_SRC} ${LIB_SRC})
-target_include_directories(cpct-translate PRIVATE src/core)
-
-# cpct-compile.exe
-add_executable(cpct-compile src/compile/main.cpp)
-
-# cpct-jit.exe
-add_executable(cpct-jit src/jit/main.cpp ${CORE_SRC} ${LIB_SRC})
-target_include_directories(cpct-jit PRIVATE src/core)
+# cpct.exe — unified single binary
+add_executable(cpct src/main.cpp ${CORE_SRC} ${LIB_SRC})
+target_include_directories(cpct PRIVATE src/core)
 if(UNIX)
     find_package(Threads REQUIRED)
-    target_link_libraries(cpct-jit PRIVATE Threads::Threads)
+    target_link_libraries(cpct PRIVATE Threads::Threads)
 endif()

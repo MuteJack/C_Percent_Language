@@ -4,11 +4,8 @@ REM Run from "x64 Native Tools Command Prompt for VS 2022"
 REM or any terminal after running vcvars64.bat
 REM
 REM Usage:
-REM   build.bat              Build all (cpct, translate, compile, jit)
+REM   build.bat              Build all (cpct + cling if needed)
 REM   build.bat cpct         Build cpct.exe only
-REM   build.bat translator   Build cpct-translate.exe only
-REM   build.bat compiler     Build cpct-compile.exe only
-REM   build.bat jit          Build cpct-jit.exe only
 REM   build.bat cling        Build cling from source
 REM   build.bat clean        Remove build directory
 
@@ -32,7 +29,7 @@ if "%TARGET%"=="clean" (
 
 if "%TARGET%"=="cling" goto :build_cling
 
-REM === Build C% executables ===
+REM === Build cpct.exe ===
 echo Configuring CMake...
 cmake -B build -G "Visual Studio 17 2022" -A x64 -Thost=x64
 
@@ -40,17 +37,8 @@ if "%TARGET%"=="all" goto :build_all
 if "%TARGET%"=="cpct" (
     echo Building cpct.exe...
     cmake --build build --config Release --target cpct
-) else if "%TARGET%"=="translator" (
-    echo Building cpct-translate.exe...
-    cmake --build build --config Release --target cpct-translate
-) else if "%TARGET%"=="compiler" (
-    echo Building cpct-compile.exe...
-    cmake --build build --config Release --target cpct-compile
-) else if "%TARGET%"=="jit" (
-    echo Building cpct-jit.exe...
-    cmake --build build --config Release --target cpct-jit
 ) else (
-    echo Usage: build.bat [all^|cpct^|translator^|compiler^|jit^|cling^|clean]
+    echo Usage: build.bat [all^|cpct^|cling^|clean]
     exit /b 1
 )
 
@@ -70,8 +58,8 @@ if %ERRORLEVEL% neq 0 (
 )
 echo Configuring CMake...
 cmake -B build -G "Visual Studio 17 2022" -A x64 -Thost=x64
-echo Building all targets...
-cmake --build build --config Release --target cpct cpct-translate cpct-compile cpct-jit
+echo Building cpct.exe...
+cmake --build build --config Release --target cpct
 if %ERRORLEVEL% neq 0 (
     echo Build failed.
     exit /b 1
@@ -140,7 +128,7 @@ if %ERRORLEVEL% neq 0 (
 
 cd ..\..
 
-REM Copy from Release/ to flat structure for cpct-jit to find
+REM Copy from Release/ to flat structure
 if not exist tools\cling-build\bin mkdir tools\cling-build\bin
 copy /Y tools\cling-build\Release\bin\cling.exe tools\cling-build\bin\ >nul
 if not exist tools\cling-build\lib mkdir tools\cling-build\lib

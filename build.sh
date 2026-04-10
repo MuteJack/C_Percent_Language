@@ -106,48 +106,15 @@ build_cling() {
 
 # ============== C% Build ==============
 
-build_translator() {
-    echo "Building cpct-translate..."
-    $CXX $CXXFLAGS \
-        -I src/core \
-        -o "cpct-translate" \
-        src/translate/main.cpp \
-        $CORE_SRC \
-        $LIB_SRC
-    echo "Build successful: cpct-translate"
-}
-
-build_compiler() {
-    echo "Building cpct-compile..."
-    $CXX $CXXFLAGS \
-        -o "cpct-compile" \
-        src/compile/main.cpp
-    echo "Build successful: cpct-compile"
-}
-
-build_jit() {
-    # Ensure cling is available
-    if ! check_cling; then
-        echo "Cling not found. Building cling first..."
-        build_cling
-    fi
-
-    echo "Building cpct-jit..."
-    $CXX $CXXFLAGS \
-        -I src/core \
-        -pthread \
-        -o "cpct-jit" \
-        src/jit/main.cpp \
-        $CORE_SRC \
-        $LIB_SRC
-    echo "Build successful: cpct-jit"
-}
-
 build_cpct() {
     echo "Building cpct..."
     $CXX $CXXFLAGS \
+        -I src/core \
+        -pthread \
         -o "cpct" \
-        src/main.cpp
+        src/main.cpp \
+        $CORE_SRC \
+        $LIB_SRC
     echo "Build successful: cpct"
 }
 
@@ -166,21 +133,15 @@ install_lib() {
 # ============== Main ==============
 
 case "${1:-all}" in
-    translator) build_translator ;;
-    compiler)   build_compiler ;;
-    jit)        build_jit ;;
-    cpct)       build_cpct ;;
-    cling)      build_cling ;;
+    cpct)  build_cpct ;;
+    cling) build_cling ;;
     all)
         build_cling
         build_cpct
-        build_translator
-        build_compiler
-        build_jit
         install_lib
         ;;
     *)
-        echo "Usage: bash build.sh [translator|compiler|jit|cpct|cling|all]"
+        echo "Usage: bash build.sh [cpct|cling|all]"
         exit 1
         ;;
 esac

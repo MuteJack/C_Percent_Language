@@ -1,8 +1,7 @@
-// cpct-jit.exe — C% JIT REPL via Cling.
-// Usage:
-//   cpct-jit                 REPL mode
-//   cpct-jit script.cpc      JIT execute file
-#include "../core/version.h"
+// jit/repl.h — C% JIT REPL via Cling.
+// ClingProcess: bidirectional pipe to cling with [cling]$ prompt filtering.
+// ClingRepl: interactive REPL and file execution.
+#pragma once
 #include "../translate/translator.h"
 #include <iostream>
 #include <fstream>
@@ -23,7 +22,6 @@
 namespace fs = std::filesystem;
 
 // Bidirectional pipe to cling process with stdout prompt filtering.
-// Captures cling's stdout and strips "[cling]$ " prompts before printing.
 class ClingProcess {
 public:
     bool start(const std::string& cmd) {
@@ -47,7 +45,7 @@ public:
 
         std::string cmdLine = cmd;
         if (!CreateProcessA(nullptr, cmdLine.data(), nullptr, nullptr, TRUE,
-                            0, nullptr, nullptr, &si, &pi_)) {
+                            CREATE_NEW_PROCESS_GROUP, nullptr, nullptr, &si, &pi_)) {
             CloseHandle(hStdinRd); CloseHandle(hStdinWr);
             CloseHandle(hStdoutRd); CloseHandle(hStdoutWr);
             return false;
@@ -63,6 +61,7 @@ public:
         pid_ = fork();
         if (pid_ < 0) return false;
         if (pid_ == 0) {
+            setpgid(0, 0);
             ::close(stdinPipe[1]);
             ::close(stdoutPipe[0]);
             dup2(stdinPipe[0], STDIN_FILENO);
@@ -119,6 +118,16 @@ public:
 #endif
     }
 
+    void interrupt() {
+#ifdef _WIN32
+        if (pi_.dwProcessId) {
+            GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pi_.dwProcessId);
+        }
+#else
+        if (pid_ > 0) { kill(pid_, SIGINT); }
+#endif
+    }
+
     ~ClingProcess() { close(); }
 
 private:
@@ -144,7 +153,6 @@ private:
 #endif
     }
 
-    // Read cling stdout, strip "[cling]$ " prompts, print everything else.
     void readerLoop() {
         const std::string PROMPT = "[cling]$ ";
         const std::string PROMPT2 = "[cling]$";
@@ -156,14 +164,12 @@ private:
             if (n <= 0) break;
             buf.append(chunk, n);
 
-            // Remove complete prompt occurrences (longer pattern first)
             std::string::size_type pos;
             while ((pos = buf.find(PROMPT)) != std::string::npos)
                 buf.erase(pos, PROMPT.size());
             while ((pos = buf.find(PROMPT2)) != std::string::npos)
                 buf.erase(pos, PROMPT2.size());
 
-            // Hold back partial match at end of buffer
             size_t safe = buf.size();
             for (size_t len = 1; len < PROMPT.size() && len <= buf.size(); len++) {
                 if (PROMPT.compare(0, len, buf, buf.size() - len, len) == 0) {
@@ -179,7 +185,6 @@ private:
             }
         }
 
-        // Flush remaining buffer
         std::string::size_type pos;
         while ((pos = buf.find(PROMPT)) != std::string::npos)
             buf.erase(pos, PROMPT.size());
@@ -195,19 +200,94 @@ public:
               const std::string& libPath = "")
         : clingPath_(clingPath), resourceDir_(resourceDir), libPath_(libPath) {}
 
+    // Auto-detect cling and lib paths relative to exePath
+    static ClingRepl autoDetect(const std::string& exePath) {
+        std::string clingPath, resourceDir, libPath;
+        auto els = exePath.find_last_of("/\\");
+        std::string exeBaseDir = (els != std::string::npos) ? exePath.substr(0, els + 1) : "";
+
+#ifdef _WIN32
+        const char* homeVar = "USERPROFILE";
+#else
+        const char* homeVar = "HOME";
+#endif
+        std::string home = getenv(homeVar) ? getenv(homeVar) : "";
+
+        struct { std::string path; std::string resDir; } candidates[] = {
+            { exeBaseDir + "tools/cling-build/bin/cling" + std::string(
+#ifdef _WIN32
+              ".exe"
+#else
+              ""
+#endif
+            ), exeBaseDir + "tools/cling-build/lib/clang" },
+            { home + "/.conda/envs/cpct-cling/Library/bin/cling.exe",
+              home + "/.conda/envs/cpct-cling/Library/lib/clang/18" },
+            { home + "/.conda/envs/cpct-cling/bin/cling",
+              home + "/.conda/envs/cpct-cling/lib/clang/18" },
+            { home + "/miniconda3/envs/cpct-cling/bin/cling",
+              home + "/miniconda3/envs/cpct-cling/lib/clang/18" },
+            { "/usr/bin/cling", "/usr/lib/clang/18" },
+        };
+        bool found = false;
+        for (auto& c : candidates) {
+            if (fs::exists(c.path)) {
+                clingPath = c.path;
+                resourceDir = c.resDir;
+                if (fs::is_directory(resourceDir) && !fs::exists(resourceDir + "/include")) {
+                    for (auto& entry : fs::directory_iterator(resourceDir)) {
+                        if (entry.is_directory()) {
+                            resourceDir = entry.path().string();
+                            break;
+                        }
+                    }
+                }
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+#ifdef _WIN32
+            if (std::system("cling --version > nul 2>&1") == 0) {
+#else
+            if (std::system("cling --version > /dev/null 2>&1") == 0) {
+#endif
+                clingPath = "cling";
+            } else {
+                std::cerr << "Error: cling not found." << std::endl;
+                std::cerr << "Build: bash build.sh cling" << std::endl;
+                std::cerr << "Or install via:" << std::endl;
+                std::cerr << "  conda: conda create -n cpct-cling -c conda-forge cling" << std::endl;
+                std::cerr << "  snap:  sudo snap install cling" << std::endl;
+            }
+        }
+
+        // Find cpct lib path
+        std::vector<std::string> libCandidates = {
+            exeBaseDir + "tools/cling-build/include",
+            exeBaseDir + "../tools/cling-build/include",
+            "tools/cling-build/include",
+            exeBaseDir + "src/lib",
+            exeBaseDir + "../src/lib",
+            "src/lib",
+            "../src/lib",
+        };
+        for (auto& p : libCandidates) {
+            if (fs::exists(p + "/cpct/types.h")) { libPath = fs::canonical(p).string(); break; }
+        }
+
+        return ClingRepl(clingPath, resourceDir, libPath);
+    }
+
+    bool isAvailable() const { return !clingPath_.empty(); }
+
     void run() {
         if (!proc_.start(buildClingCmd())) {
             std::cerr << "Error: Cannot start cling" << std::endl;
             return;
         }
 
-        send("#include \"cling/Interpreter/RuntimeOptions.h\"");
-        send("cling::runtime::gClingOpts->AllowRedefinition = 0;");
-        send("#include <cpct/types.h>");
-        send("#include <cpct/io.h>");
-        send("#include <memory>");
-        send("#include <utility>");
-        send("using namespace cpct;");
+        sendPreamble();
 
         std::cout << CPCT_LANG_NAME " v" CPCT_VERSION " (JIT via Cling)" << std::endl;
         std::cout << "Type 'exit' to quit." << std::endl << std::endl;
@@ -218,12 +298,29 @@ public:
             if (!std::getline(std::cin, line)) break;
             if (line == "exit" || line == "quit") break;
             if (line.empty()) continue;
+            // Backslash continuation
+            while (line.size() > 0 && line.back() == '\\') {
+                line.pop_back();
+                std::cout << "...  "; std::cout.flush();
+                std::string next;
+                if (!std::getline(std::cin, next)) break;
+                line += "\n" + next;
+            }
+            if (line.empty()) continue;
             std::string source = line;
             int braces = 0;
             for (char c : source) { if (c == '{') braces++; if (c == '}') braces--; }
             while (braces > 0) {
                 std::cout << "...  "; std::cout.flush();
                 if (!std::getline(std::cin, line)) break;
+                // Backslash continuation inside brace block
+                while (line.size() > 0 && line.back() == '\\') {
+                    line.pop_back();
+                    std::cout << "...  "; std::cout.flush();
+                    std::string next;
+                    if (!std::getline(std::cin, next)) break;
+                    line += "\n" + next;
+                }
                 source += "\n" + line;
                 for (char c : line) { if (c == '{') braces++; if (c == '}') braces--; }
             }
@@ -248,11 +345,7 @@ public:
             std::cerr << "Error: Cannot start cling" << std::endl;
             return;
         }
-        send("#include \"cling/Interpreter/RuntimeOptions.h\"");
-        send("cling::runtime::gClingOpts->AllowRedefinition = 0;");
-        send("#include <cpct/types.h>"); send("#include <cpct/io.h>");
-        send("#include <memory>"); send("#include <utility>");
-        send("using namespace cpct;");
+        sendPreamble();
         send(body);
         send(".q");
         proc_.close();
@@ -268,6 +361,16 @@ private:
         if (!resourceDir_.empty()) cmd += " -resource-dir \"" + resourceDir_ + "\"";
         if (!libPath_.empty()) cmd += " -I \"" + libPath_ + "\"";
         return cmd;
+    }
+
+    void sendPreamble() {
+        send("#include \"cling/Interpreter/RuntimeOptions.h\"");
+        send("cling::runtime::gClingOpts->AllowRedefinition = 0;");
+        send("#include <cpct/types.h>");
+        send("#include <cpct/io.h>");
+        send("#include <memory>");
+        send("#include <utility>");
+        send("using namespace cpct;");
     }
 
     void processInput(const std::string& cpcLine) {
@@ -326,102 +429,3 @@ private:
         while (std::getline(s, line)) { proc_.write(line + "\n"); }
     }
 };
-
-int main(int argc, char* argv[]) {
-    if (argc >= 2) {
-        std::string a = argv[1];
-        if (a == "--version" || a == "-v") { std::cout << "cpct-jit v" CPCT_VERSION << std::endl; return 0; }
-        if (a == "--help" || a == "-h") { std::cout << "Usage: cpct-jit [script.cpc]" << std::endl; return 0; }
-    }
-    // Find cling: try multiple paths (conda Windows, conda Linux, snap, local build, PATH)
-    std::string clingPath, resourceDir;
-    {
-#ifdef _WIN32
-        const char* homeVar = "USERPROFILE";
-#else
-        const char* homeVar = "HOME";
-#endif
-        std::string home = getenv(homeVar) ? getenv(homeVar) : "";
-        std::string exePath = argv[0];
-        auto els = exePath.find_last_of("/\\");
-        std::string exeBaseDir = (els != std::string::npos) ? exePath.substr(0, els + 1) : "";
-        struct { std::string path; std::string resDir; } candidates[] = {
-            // Local build (tools/cling-build/)
-            { exeBaseDir + "tools/cling-build/bin/cling" + std::string(
-#ifdef _WIN32
-              ".exe"
-#else
-              ""
-#endif
-            ), exeBaseDir + "tools/cling-build/lib/clang" },
-            // conda Windows
-            { home + "/.conda/envs/cpct-cling/Library/bin/cling.exe",
-              home + "/.conda/envs/cpct-cling/Library/lib/clang/18" },
-            // conda Linux/Mac
-            { home + "/.conda/envs/cpct-cling/bin/cling",
-              home + "/.conda/envs/cpct-cling/lib/clang/18" },
-            // conda (miniconda/miniforge)
-            { home + "/miniconda3/envs/cpct-cling/bin/cling",
-              home + "/miniconda3/envs/cpct-cling/lib/clang/18" },
-            // system (Linux)
-            { "/usr/bin/cling", "/usr/lib/clang/18" },
-        };
-        bool found = false;
-        for (auto& c : candidates) {
-            if (fs::exists(c.path)) {
-                clingPath = c.path;
-                resourceDir = c.resDir;
-                if (fs::is_directory(resourceDir) && !fs::exists(resourceDir + "/include")) {
-                    for (auto& entry : fs::directory_iterator(resourceDir)) {
-                        if (entry.is_directory()) {
-                            resourceDir = entry.path().string();
-                            break;
-                        }
-                    }
-                }
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-#ifdef _WIN32
-            if (std::system("cling --version > nul 2>&1") == 0) {
-#else
-            if (std::system("cling --version > /dev/null 2>&1") == 0) {
-#endif
-                clingPath = "cling";
-                resourceDir = "";
-            } else {
-                std::cerr << "Error: cling not found." << std::endl;
-                std::cerr << "Build: bash build.sh cling" << std::endl;
-                std::cerr << "Or install via:" << std::endl;
-                std::cerr << "  conda: conda create -n cpct-cling -c conda-forge cling" << std::endl;
-                std::cerr << "  snap:  sudo snap install cling" << std::endl;
-                return 1;
-            }
-        }
-    }
-    // Find cpct lib path (src/lib relative to executable)
-    std::string libPath;
-    {
-        std::string exePath = argv[0];
-        auto ls = exePath.find_last_of("/\\");
-        std::string dir = (ls != std::string::npos) ? exePath.substr(0, ls + 1) : "";
-        std::vector<std::string> libCandidates = {
-            dir + "tools/cling-build/include",
-            dir + "../tools/cling-build/include",
-            "tools/cling-build/include",
-            dir + "src/lib",
-            dir + "../src/lib",
-            "src/lib",
-            "../src/lib",
-        };
-        for (auto& p : libCandidates) {
-            if (fs::exists(p + "/cpct/types.h")) { libPath = fs::canonical(p).string(); break; }
-        }
-    }
-
-    ClingRepl repl(clingPath, resourceDir, libPath);
-    if (argc >= 2) repl.runFile(argv[1]); else repl.run();
-    return 0;
-}

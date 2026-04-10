@@ -9,7 +9,7 @@ import shutil
 import platform
 
 # --- Config ---
-TRANSLATOR = "./cpct-translate"
+CPCT = "./cpct"
 LIB_DIR = "src/lib"
 LIB_SRC = "src/lib/cpct/data/type/bigint.cpp"
 TIMEOUT = 10
@@ -51,12 +51,16 @@ def run_test(cpc_file, tmp_dir, compiler, cxx_flags, mode):
     else:
         exe_file = os.path.join(tmp_dir, name)
 
-    # Step 1: Translate
+    # Step 1: Translate (using cpct --translate)
     try:
-        with open(cpp_file, "w") as out:
-            r = subprocess.run([TRANSLATOR, cpc_file], stdout=out, stderr=subprocess.PIPE, timeout=TIMEOUT)
+        r = subprocess.run([CPCT, "--translate", cpc_file, "-o", tmp_dir],
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=TIMEOUT)
         if r.returncode != 0:
             return "translate", r.stderr.decode(errors="replace").strip()
+        # cpct --translate writes to tmp_dir/name.cpp
+        expected_cpp = os.path.join(tmp_dir, name + ".cpp")
+        if not os.path.exists(expected_cpp):
+            return "translate", "output file not created"
     except Exception as e:
         return "translate", str(e)
 
@@ -72,7 +76,6 @@ def run_test(cpc_file, tmp_dir, compiler, cxx_flags, mode):
         r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
         if r.returncode != 0:
             err = (r.stdout.decode(errors="replace") + r.stderr.decode(errors="replace")).strip()
-            # Show first 3 lines of error
             lines = err.splitlines()[:3]
             return "compile", "\n".join(lines)
     except Exception as e:
