@@ -17,6 +17,8 @@ CXX="g++"
 GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME=$(date +%Y%m%d-%H%M%S)
 CXXFLAGS="-std=c++20 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -DCPCT_GIT_HASH=\"${GIT_HASH}\" -DCPCT_BUILD_TIME=\"${BUILD_TIME}\""
+LOG_FILE="build-${BUILD_TIME}.log"
+exec > >(tee -a "$LOG_FILE") 2>&1
 CORE_SRC="src/core/lexer.cpp src/core/parser.cpp"
 LIB_SRC=$(sed 's|^|src/lib/|' src/lib/sources.txt)
 CLING_DIR="tools/cling-build"

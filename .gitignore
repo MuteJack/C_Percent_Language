@@ -11,3 +11,6 @@
 
 /cpct*
 !/cpct-vscode
+
+# Logs
+*.log

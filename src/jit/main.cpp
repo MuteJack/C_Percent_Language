@@ -63,17 +63,17 @@ public:
         pid_ = fork();
         if (pid_ < 0) return false;
         if (pid_ == 0) {
-            close(stdinPipe[1]);
-            close(stdoutPipe[0]);
+            ::close(stdinPipe[1]);
+            ::close(stdoutPipe[0]);
             dup2(stdinPipe[0], STDIN_FILENO);
             dup2(stdoutPipe[1], STDOUT_FILENO);
-            close(stdinPipe[0]);
-            close(stdoutPipe[1]);
+            ::close(stdinPipe[0]);
+            ::close(stdoutPipe[1]);
             execl("/bin/sh", "sh", "-c", cmd.c_str(), nullptr);
             _exit(127);
         }
-        close(stdinPipe[0]);
-        close(stdoutPipe[1]);
+        ::close(stdinPipe[0]);
+        ::close(stdoutPipe[1]);
         stdinFd_ = stdinPipe[1];
         stdoutFd_ = stdoutPipe[0];
 #endif
@@ -87,7 +87,7 @@ public:
         DWORD written;
         WriteFile(hStdinWr_, data.c_str(), (DWORD)data.size(), &written, nullptr);
 #else
-        ::write(stdinFd_, data.c_str(), data.size());
+        if (::write(stdinFd_, data.c_str(), data.size()) < 0) {}
 #endif
     }
 
